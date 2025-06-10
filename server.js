@@ -56,18 +56,33 @@ app.get('/health', async (req, res) => {
 // Fillout webhook endpoint
 app.post('/webhook/fillout', async (req, res) => {
   try {
-    console.log('Received Fillout webhook:', req.headers);
-    console.log('Webhook body:', JSON.stringify(req.body, null, 2));
+    console.log('=== FILLOUT WEBHOOK RECEIVED ===');
+    console.log('Headers:', JSON.stringify(req.headers, null, 2));
+    console.log('=== WEBHOOK BODY ===');
+    console.log(JSON.stringify(req.body, null, 2));
+    console.log('=== EXTRACTING FORM DATA ===');
     
     // Skip signature verification for now
     console.log('Webhook signature verification disabled');
 
-    const formData = extractFormData(req.body);
+    let formData;
+    try {
+      formData = extractFormData(req.body);
+      console.log('=== FORM DATA EXTRACTED ===');
+    } catch (extractError) {
+      console.error('Error extracting form data:', extractError);
+      return res.status(500).json({ 
+        error: 'Form data extraction failed',
+        message: extractError.message 
+      });
+    }
     
     if (!formData.business_legal_name && !formData.contact_email) {
       console.error('Missing required form data');
+      console.log('Available fields:', Object.keys(formData));
       return res.status(400).json({ 
-        error: 'Missing required fields: business_legal_name or contact_email' 
+        error: 'Missing required fields: business_legal_name or contact_email',
+        availableFields: Object.keys(formData)
       });
     }
 
