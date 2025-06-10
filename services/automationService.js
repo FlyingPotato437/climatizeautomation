@@ -29,6 +29,9 @@ class AutomationService {
   async processNewLead(formData) {
     try {
       console.log('Processing new lead:', formData.business_legal_name);
+      
+      // Initialize services if needed
+      this.initializeServices();
 
       // Step 1: Create client folder structure in "Leads Phase 1"
       const folders = await this.createClientFolders(formData.business_legal_name);
