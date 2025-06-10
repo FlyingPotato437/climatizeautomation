@@ -57,6 +57,7 @@ app.get('/health', async (req, res) => {
 app.post('/webhook/fillout', async (req, res) => {
   try {
     console.log('Received Fillout webhook:', req.headers);
+    console.log('Webhook body:', JSON.stringify(req.body, null, 2));
     
     // Skip signature verification for now
     console.log('Webhook signature verification disabled');
