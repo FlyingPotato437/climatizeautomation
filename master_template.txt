@@ -1,0 +1,212 @@
+CLIMATIZE.EARTH - PHASE 1 INTAKE PACKET
+
+========================================
+SECTION 1: MUTUAL NON-DISCLOSURE AGREEMENT
+========================================
+
+MUTUAL NON-DISCLOSURE AGREEMENT
+
+This Mutual Non-Disclosure Agreement ("Agreement") is entered into on {{current_date}} between Climatize.earth, a Delaware corporation ("Climatize") with its principal place of business at [Climatize Address], and {{business_legal_name}}, a {{Entity_type}} organized under the laws of {{state_incorporation}} ("Company") with its principal place of business at {{address_issuer}}, {{city_issuer}}, {{state_issuer}} {{zip_issuer}}.
+
+RECITALS
+
+WHEREAS, the parties desire to explore potential business opportunities and may disclose to each other certain confidential and proprietary information;
+
+WHEREAS, the parties wish to protect such confidential information and agree to the terms and conditions set forth herein;
+
+NOW, THEREFORE, in consideration of the mutual covenants contained herein, the parties agree as follows:
+
+1. DEFINITION OF CONFIDENTIAL INFORMATION
+"Confidential Information" means any and all non-public information disclosed by either party, including but not limited to: business plans, financial information, customer data, technical specifications, project details, investment strategies, and any other proprietary information related to {{project_name}} and the {{business_description}}.
+
+2. OBLIGATIONS OF RECEIVING PARTY
+Each party agrees to:
+- Maintain the confidentiality of all Confidential Information
+- Use Confidential Information solely for evaluating potential business opportunities
+- Not disclose Confidential Information to third parties without prior written consent
+- Take reasonable precautions to protect Confidential Information
+
+3. TERM
+This Agreement shall remain in effect for a period of three (3) years from the date of execution.
+
+4. RETURN OF INFORMATION
+Upon termination or request, each party shall return all Confidential Information and any copies thereof.
+
+IN WITNESS WHEREOF, the parties have executed this Agreement as of the date first written above.
+
+CLIMATIZE.EARTH                    {{business_legal_name}}
+
+By: _________________________     By: _________________________
+Name: [Climatize Signatory]       Name: {{first_name}} {{last_name}}
+Title: [Title]                    Title: {{title}}
+Date: {{current_date}}            Date: _____________
+
+========================================
+SECTION 2: LIMITED POWER OF ATTORNEY
+========================================
+
+LIMITED POWER OF ATTORNEY
+
+KNOW ALL MEN BY THESE PRESENTS, that {{business_legal_name}}, a {{Entity_type}} organized under the laws of {{state_incorporation}} ("Principal"), with its principal place of business at {{address_issuer}}, {{city_issuer}}, {{state_issuer}} {{zip_issuer}}, does hereby constitute and appoint Climatize.earth and its designated representatives as its true and lawful attorney-in-fact ("Attorney-in-Fact") for the limited purposes set forth herein.
+
+SCOPE OF AUTHORITY
+
+The Attorney-in-Fact is hereby authorized to act on behalf of the Principal solely for the following purposes related to financing for {{project_name}}:
+
+1. Execute and deliver financing documents, loan agreements, and related documentation
+2. Submit applications to lenders and financial institutions
+3. Provide information and documentation to prospective lenders
+4. Negotiate terms and conditions of financing arrangements within pre-approved parameters
+5. Execute closing documents necessary to complete approved financing transactions
+
+LIMITATIONS
+
+This Power of Attorney is specifically limited to financing activities for the project described as: {{project_description}}
+
+Maximum financing amount authorized: {{maximum_offering_amount}}
+Target financing amount: {{target_offering_amount}}
+Financing deadline: {{deadline}}
+
+DURATION
+
+This Power of Attorney shall remain in effect until {{deadline}} or until revoked in writing by the Principal.
+
+PRINCIPAL INFORMATION
+
+Principal: {{business_legal_name}}
+EIN: {{ein}}
+Incorporation Date: {{date_incorporation}}
+Fiscal Year End: {{fiscal_year_end}}
+Website: {{website}}
+Phone: {{phone_issuer}}
+
+Authorized Signatory: {{first_name}} {{last_name}}
+Title: {{title}}
+Email: {{email}}
+Mobile: {{mobile_phone}}
+LinkedIn: {{linkedin}}
+
+IN WITNESS WHEREOF, the Principal has executed this Power of Attorney on {{current_date}}.
+
+{{business_legal_name}}
+
+By: _________________________
+{{first_name}} {{last_name}}
+{{title}}
+
+STATE OF {{state_incorporation}}
+COUNTY OF ____________
+
+On {{current_date}}, before me personally appeared {{first_name}} {{last_name}}, who proved to me on the basis of satisfactory evidence to be the person whose name is subscribed to the within instrument and acknowledged to me that he/she executed the same in his/her authorized capacity, and that by his/her signature on the instrument the person, or the entity upon behalf of which the person acted, executed the instrument.
+
+Notary Public: _________________________
+
+========================================
+SECTION 3: PROJECT-SPECIFIC TERM SHEET
+========================================
+
+{{term_sheet_content}}
+
+========================================
+SECTION 4: COMPANY & PROJECT SUMMARY
+========================================
+
+COMPANY INFORMATION
+
+Legal Name: {{business_legal_name}}
+Entity Type: {{Entity_type}}
+State of Incorporation: {{state_incorporation}}
+Date of Incorporation: {{date_incorporation}}
+EIN: {{ein}}
+Fiscal Year End: {{fiscal_year_end}}
+
+Business Address:
+{{address_issuer}}
+{{city_issuer}}, {{state_issuer}} {{zip_issuer}}
+Phone: {{phone_issuer}}
+Website: {{website}}
+
+Business Description:
+{{business_description}}
+
+PRIMARY CONTACT
+
+Name: {{first_name}} {{last_name}}
+Title: {{title}}
+Email: {{email}}
+Mobile Phone: {{mobile_phone}}
+LinkedIn: {{linkedin}}
+
+PROJECT DETAILS
+
+Project Name: {{project_name}}
+Technology: {{tech}}
+Other Technology Details: {{other_tech}}
+
+Project Location:
+{{address_project}}
+{{city_project}}, {{state_project}} {{zip_project}}
+
+Technical Specifications:
+Nameplate Capacity: {{Name_plate_capacity}} kW DC
+
+Project Description:
+{{project_description}}
+
+FINANCING REQUIREMENTS
+
+Financing Option: {{Financing_option}}
+Other Financing Details: {{financing_other}}
+Specific Requirements: {{financing_requirements}}
+
+Target Offering Amount: ${{target_offering_amount}}
+Maximum Offering Amount: ${{maximum_offering_amount}}
+Funding Deadline: {{deadline}}
+
+Proposed Terms:
+- Term: {{term}}
+- Interest Rate: {{rate}}
+- Timeline: {{timeline}}
+
+Use of Funds:
+{{use_of_funds}}
+
+========================================
+SECTION 5: NEXT STEPS & PROCESS
+========================================
+
+IMMEDIATE ACTION ITEMS
+
+1. ✓ MNDA Execution - Both parties sign the mutual non-disclosure agreement
+2. ✓ POA Execution - Company executes limited power of attorney for financing activities
+3. ⏳ Due Diligence - Climatize.earth conducts preliminary project and company review
+4. ⏳ Term Sheet Finalization - Negotiate and finalize specific financing terms
+5. ⏳ Documentation - Prepare comprehensive financing documentation
+6. ⏳ Lender Outreach - Present opportunity to appropriate financing sources
+7. ⏳ Closing - Execute final documentation and fund transaction
+
+TIMELINE
+
+Week 1-2: Documentation execution and due diligence
+Week 3-4: Term sheet negotiation and lender identification  
+Week 5-8: Documentation preparation and lender presentations
+Week 9-12: Final negotiations and closing
+
+CONTACT INFORMATION
+
+For questions regarding this intake packet or to schedule next steps:
+
+Climatize.earth Team
+Email: projects@climatize.earth
+Phone: [Phone Number]
+Website: www.climatize.earth
+
+Calendar Link: {{calendar_link}}
+
+========================================
+
+Document Generated: {{current_date}} at {{current_time}}
+Form Submission ID: {{form_id}}
+Client Reference: {{business_legal_name}} - {{project_name}}
+
+© 2025 Climatize.earth. All rights reserved.
