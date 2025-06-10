@@ -24,11 +24,14 @@ class GoogleAuthService {
       process.env.GOOGLE_REDIRECT_URI
     );
 
-    // Set refresh token if available
-    if (process.env.GOOGLE_REFRESH_TOKEN) {
+    // Set refresh token if available and valid
+    if (process.env.GOOGLE_REFRESH_TOKEN && process.env.GOOGLE_REFRESH_TOKEN !== 'DISABLED') {
+      console.log('Setting refresh token...');
       this.oauth2Client.setCredentials({
         refresh_token: process.env.GOOGLE_REFRESH_TOKEN
       });
+    } else {
+      console.log('No refresh token configured - OAuth flow required');
     }
   }
 
