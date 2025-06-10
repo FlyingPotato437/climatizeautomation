@@ -7,11 +7,23 @@ require('dotenv').config();
 
 class AutomationService {
   constructor() {
-    this.docsService = new GoogleDocsService();
-    this.driveService = new GoogleDriveService();
+    console.log('Initializing AutomationService...');
+    this.docsService = null;
+    this.driveService = null;
     // Skip email and slack for now
     // this.emailService = new EmailService();
     // this.slackService = new SlackService();
+  }
+
+  initializeServices() {
+    if (!this.docsService) {
+      console.log('Creating GoogleDocsService...');
+      this.docsService = new GoogleDocsService();
+    }
+    if (!this.driveService) {
+      console.log('Creating GoogleDriveService...');
+      this.driveService = new GoogleDriveService();
+    }
   }
 
   async processNewLead(formData) {

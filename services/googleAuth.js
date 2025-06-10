@@ -3,11 +3,15 @@ require('dotenv').config();
 
 class GoogleAuthService {
   constructor() {
-    console.log('Google OAuth Config:', {
-      clientId: process.env.GOOGLE_CLIENT_ID ? `${process.env.GOOGLE_CLIENT_ID.substring(0, 20)}...` : 'MISSING',
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET ? 'PRESENT' : 'MISSING',
-      redirectUri: process.env.GOOGLE_REDIRECT_URI
+    console.log('Google OAuth Config Debug:', {
+      clientId: process.env.GOOGLE_CLIENT_ID || 'UNDEFINED',
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET || 'UNDEFINED', 
+      redirectUri: process.env.GOOGLE_REDIRECT_URI || 'UNDEFINED'
     });
+    
+    if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET || !process.env.GOOGLE_REDIRECT_URI) {
+      throw new Error('Missing required Google OAuth environment variables');
+    }
     
     this.oauth2Client = new google.auth.OAuth2(
       process.env.GOOGLE_CLIENT_ID,
