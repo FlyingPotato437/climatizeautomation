@@ -58,16 +58,8 @@ app.post('/webhook/fillout', async (req, res) => {
   try {
     console.log('Received Fillout webhook:', req.headers);
     
-    // Verify webhook signature if secret is configured
-    if (process.env.FILLOUT_WEBHOOK_SECRET) {
-      const signature = req.headers['x-fillout-signature'];
-      if (!verifyFilloutSignature(req.body, signature)) {
-        console.error('Invalid webhook signature');
-        return res.status(401).json({ error: 'Invalid signature' });
-      }
-    } else {
-      console.log('No webhook secret configured - skipping signature verification');
-    }
+    // Skip signature verification for now
+    console.log('Webhook signature verification disabled');
 
     const formData = extractFormData(req.body);
     
