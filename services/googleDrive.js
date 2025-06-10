@@ -4,11 +4,18 @@ const GoogleAuthService = require('./googleAuth');
 class GoogleDriveService {
   constructor() {
     this.authService = new GoogleAuthService();
-    this.drive = google.drive({ version: 'v3', auth: this.authService.getAuth() });
+    this.drive = null;
+  }
+
+  initializeApi() {
+    if (!this.drive) {
+      this.drive = google.drive({ version: 'v3', auth: this.authService.getAuth() });
+    }
   }
 
   async createFolder(name, parentFolderId = null) {
     try {
+      this.initializeApi();
       await this.authService.ensureValidToken();
 
       const folderMetadata = {
@@ -35,6 +42,7 @@ class GoogleDriveService {
 
   async createClientFolderStructure(businessName) {
     try {
+      this.initializeApi();
       const leadsPhase1FolderId = process.env.LEADS_PHASE1_FOLDER_ID;
       
       // Create main client folder
@@ -57,6 +65,7 @@ class GoogleDriveService {
 
   async setFolderPermissions(folderId, permissions) {
     try {
+      this.initializeApi();
       await this.authService.ensureValidToken();
 
       const results = [];
@@ -82,6 +91,7 @@ class GoogleDriveService {
 
   async copyFile(sourceFileId, name, parentFolderId) {
     try {
+      this.initializeApi();
       await this.authService.ensureValidToken();
 
       const copiedFile = await this.drive.files.copy({
@@ -103,6 +113,7 @@ class GoogleDriveService {
 
   async moveFile(fileId, newParentFolderId, oldParentFolderId = null) {
     try {
+      this.initializeApi();
       await this.authService.ensureValidToken();
 
       const updateParams = {
@@ -126,6 +137,7 @@ class GoogleDriveService {
 
   async getFileInfo(fileId) {
     try {
+      this.initializeApi();
       await this.authService.ensureValidToken();
 
       const file = await this.drive.files.get({
@@ -142,6 +154,7 @@ class GoogleDriveService {
 
   async listFiles(parentFolderId = null, mimeType = null) {
     try {
+      this.initializeApi();
       await this.authService.ensureValidToken();
 
       let query = '';

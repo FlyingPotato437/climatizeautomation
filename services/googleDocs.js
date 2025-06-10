@@ -4,12 +4,20 @@ const GoogleAuthService = require('./googleAuth');
 class GoogleDocsService {
   constructor() {
     this.authService = new GoogleAuthService();
-    this.docs = google.docs({ version: 'v1', auth: this.authService.getAuth() });
-    this.drive = google.drive({ version: 'v3', auth: this.authService.getAuth() });
+    this.docs = null;
+    this.drive = null;
+  }
+
+  initializeApis() {
+    if (!this.docs) {
+      this.docs = google.docs({ version: 'v1', auth: this.authService.getAuth() });
+      this.drive = google.drive({ version: 'v3', auth: this.authService.getAuth() });
+    }
   }
 
   async createDocumentFromTemplate(templateId, newDocumentName, destinationFolderId, replacements) {
     try {
+      this.initializeApis();
       await this.authService.ensureValidToken();
 
       // Step 1: Copy the template document
@@ -41,6 +49,7 @@ class GoogleDocsService {
 
   async replaceTextInDocument(documentId, replacements) {
     try {
+      this.initializeApis();
       await this.authService.ensureValidToken();
 
       // Get the document content first
@@ -85,6 +94,7 @@ class GoogleDocsService {
 
   async getDocumentContent(documentId) {
     try {
+      this.initializeApis();
       await this.authService.ensureValidToken();
 
       const doc = await this.docs.documents.get({
