@@ -62,13 +62,21 @@ class GoogleDocsService {
 
       // Create replacement requests for each variable (direct replacement, no brackets)
       for (const [variable, replacement] of Object.entries(replacements)) {
+        // Ensure replacement is a string, not an object
+        let replaceText = '';
+        if (replacement && typeof replacement === 'object') {
+          replaceText = JSON.stringify(replacement);
+        } else {
+          replaceText = String(replacement || '');
+        }
+        
         requests.push({
           replaceAllText: {
             containsText: {
               text: variable,
               matchCase: false
             },
-            replaceText: replacement || ''
+            replaceText: replaceText
           }
         });
       }
