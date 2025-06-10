@@ -39,14 +39,19 @@ class AutomationService {
       // Step 2: Create all separate documents in Internal folder
       const documents = await this.createAllDocuments(formData, folders.internal.id);
       
-      // Step 3: Set folder permissions
-      await this.setFolderPermissions(folders, formData.contact_email || formData.email);
+      // Step 3: Set folder permissions (skip if email is placeholder)
+      const clientEmail = formData.contact_email || formData.email;
+      if (clientEmail && !clientEmail.startsWith('[') && clientEmail.includes('@')) {
+        await this.setFolderPermissions(folders, clientEmail);
+      } else {
+        console.log('Skipping folder permissions - no valid email provided');
+      }
       
-      // Step 4: Send client welcome email
-      await this.sendClientWelcomeEmail(formData);
+      // Step 4: Send client welcome email (disabled for now)
+      // await this.sendClientWelcomeEmail(formData);
       
-      // Step 5: Send team notifications
-      await this.sendTeamNotifications(formData, folders);
+      // Step 5: Send team notifications (disabled for now)
+      // await this.sendTeamNotifications(formData, folders);
 
       const result = {
         success: true,
