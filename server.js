@@ -197,7 +197,12 @@ function verifyFilloutSignature(payload, signature) {
 }
 
 function extractFormData(webhookBody) {
-  // Handle different Fillout webhook formats
+  // Handle Fillout webhook format: submission.questions
+  if (webhookBody.submission && webhookBody.submission.questions) {
+    return extractFromFilloutQuestions(webhookBody.submission.questions, webhookBody);
+  }
+  
+  // Handle other Fillout webhook formats
   if (webhookBody.data) {
     return extractFromFilloutData(webhookBody.data);
   }
@@ -248,6 +253,59 @@ function extractFromFilloutData(data) {
     }
   });
 
+  return formData;
+}
+
+function extractFromFilloutQuestions(questions, webhookBody) {
+  const formData = {};
+  
+  // Extract form metadata
+  formData.form_id = webhookBody.formId || webhookBody.submission?.submissionId || 'unknown';
+  formData.submission_time = webhookBody.submission?.submissionTime;
+  
+  // Process each question
+  questions.forEach(question => {
+    if (question.name) {
+      // Convert question name to field name
+      let fieldName = question.name.toLowerCase()
+        .replace(/\s*\([^)]*\)/g, '') // Remove parentheses content like "(1)"
+        .replace(/[^\w\s]/g, '') // Remove special characters
+        .replace(/\s+/g, '_') // Replace spaces with underscores
+        .trim();
+      
+      // Store value even if null (for test webhooks), but use placeholder for nulls
+      formData[fieldName] = question.value || `[${question.name}]`;
+      console.log(`Mapped question "${question.name}" -> ${fieldName} = ${formData[fieldName]}`);
+    }
+  });
+  
+  // Apply field mappings for common variations
+  const fieldMappings = {
+    'first_name_1': 'first_name',
+    'first_name': 'first_name',
+    'last_name': 'last_name',
+    'business_name': 'business_legal_name',
+    'company_name': 'business_legal_name',
+    'legal_name': 'business_legal_name',
+    'business_legal_name': 'business_legal_name',
+    'email': 'contact_email',
+    'email_address': 'contact_email',
+    'contact_email': 'contact_email',
+    'project': 'project_type',
+    'project_type': 'project_type',
+    'financing_option': 'financing_option',
+    'financing_type': 'financing_option'
+  };
+  
+  // Apply mappings
+  Object.keys(fieldMappings).forEach(oldKey => {
+    if (formData[oldKey] && !formData[fieldMappings[oldKey]]) {
+      formData[fieldMappings[oldKey]] = formData[oldKey];
+      console.log(`Applied mapping: ${oldKey} -> ${fieldMappings[oldKey]} = ${formData[oldKey]}`);
+    }
+  });
+  
+  console.log('Final extracted form data:', JSON.stringify(formData, null, 2));
   return formData;
 }
 
