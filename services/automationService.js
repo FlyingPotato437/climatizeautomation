@@ -82,7 +82,7 @@ class AutomationService {
 
   async createAllDocuments(formData, internalFolderId) {
     try {
-      console.log('=== CREATING 4 SEPARATE DOCUMENTS ===');
+      console.log('=== CREATING 5 SEPARATE DOCUMENTS ===');
       
       // Prepare comprehensive variable replacements
       const replacements = await this.prepareAllReplacements(formData);
@@ -109,7 +109,27 @@ class AutomationService {
       );
       console.log('✅ POA Created:', documents.poa.name);
       
-      // 3. Create Term Sheet Document
+      // 3. Create Project Overview Document
+      console.log('📊 Creating Project Overview Document...');
+      documents.projectOverview = await this.docsService.createDocumentFromTemplate(
+        '1ZAXqe15o2R7y7BkXSQVB2u9o403k_i0-Qh3XU-YC-JA',
+        `${formData.business_legal_name || 'Company'} - Project Overview`,
+        internalFolderId,
+        replacements
+      );
+      console.log('✅ Project Overview Created:', documents.projectOverview.name);
+      
+      // 4. Create Form ID Document from template
+      console.log('🆔 Creating Form ID Document...');
+      documents.formId = await this.docsService.createDocumentFromTemplate(
+        '1dnDPLokfLlFmzrTS0obKZSHJH8NgBF0hMZ78rIxfXCw',
+        `${formData.business_legal_name || 'Company'} - Form ID`,
+        internalFolderId,
+        replacements
+      );
+      console.log('✅ Form ID Created:', documents.formId.name);
+      
+      // 5. Create Term Sheet Document
       console.log('💼 Creating Term Sheet Document...');
       const termSheetId = this.getTermSheetTemplateId(formData);
       const projectTypeName = this.getProjectTypeName(formData);
@@ -122,21 +142,12 @@ class AutomationService {
       );
       console.log('✅ Term Sheet Created:', documents.termSheet.name);
       
-      // 4. Create Form ID Document from template
-      console.log('🆔 Creating Form ID Document...');
-      documents.formId = await this.docsService.createDocumentFromTemplate(
-        '1dnDPLokfLlFmzrTS0obKZSHJH8NgBF0hMZ78rIxfXCw',
-        `${formData.business_legal_name || 'Company'} - Form ID`,
-        internalFolderId,
-        replacements
-      );
-      console.log('✅ Form ID Created:', documents.formId.name);
-      
-      console.log('🎉 SUCCESS: Created ALL 4 separate documents:');
+      console.log('🎉 SUCCESS: Created ALL 5 separate documents:');
       console.log('  1. MNDA:', documents.mnda.name);
       console.log('  2. POA:', documents.poa.name);
-      console.log('  3. Term Sheet:', documents.termSheet.name);
+      console.log('  3. Project Overview:', documents.projectOverview.name);
       console.log('  4. Form ID:', documents.formId.name);
+      console.log('  5. Term Sheet:', documents.termSheet.name);
       
       return documents;
       
@@ -148,37 +159,43 @@ class AutomationService {
 
 
   getTermSheetTemplateId(formData) {
-    const projectType = (formData.Financing_option || formData.project_type || '').toLowerCase();
+    const projectType = (formData.financing_option || formData.Financing_option || formData.project_type || '').toLowerCase();
     
     if (projectType.includes('working capital')) return '1MZ1W52MApg4-Vv6NHdk9atomByH7VYQ5WfSCxQyGtqw';
     if (projectType.includes('pre-dev') || projectType.includes('predevelopment')) return '1vrmDNpoD8JFFlhDID-mNpOQUeIvh-6EERCUbpnmOHG8';
     if (projectType.includes('construction plus')) return '128EYSDnvbDiiUvQNgLotuG4PzE4L3NXTwv-c94T9fbM';
     if (projectType.includes('construction')) return '1GYhaPRGAfXdGDVojKYu4VdJ_FU46IBYiPc5mwmsxUe0';
     if (projectType.includes('bridge')) return '1beRm9hyiPmpwJ_2NXeT4JvsM1J5HaVNMwd7yosIJiAM';
+    if (projectType.includes('permanent debt')) return '128VpiqE4rsWsMcpQXTurg-TLEaDlpTfEBLTA3vlLMc8';
+    if (projectType.includes('other')) return '1wdTYw3VIXwv4SpwfoAkIIC_b3skD8PZHbCkVYIeBCTE';
     
     return '1beRm9hyiPmpwJ_2NXeT4JvsM1J5HaVNMwd7yosIJiAM'; // default to bridge
   }
 
   getProjectType(formData) {
-    const projectType = (formData.Financing_option || formData.project_type || '').toLowerCase();
+    const projectType = (formData.financing_option || formData.Financing_option || formData.project_type || '').toLowerCase();
     
     if (projectType.includes('working capital')) return 'working_capital';
     if (projectType.includes('pre-dev') || projectType.includes('predevelopment')) return 'predev';
     if (projectType.includes('construction plus')) return 'construction_plus';
     if (projectType.includes('construction')) return 'construction';
     if (projectType.includes('bridge')) return 'bridge';
+    if (projectType.includes('permanent debt')) return 'permanent_debt';
+    if (projectType.includes('other')) return 'other';
     
     return 'bridge'; // default
   }
 
   getProjectTypeName(formData) {
-    const projectType = (formData.Financing_option || formData.project_type || '').toLowerCase();
+    const projectType = (formData.financing_option || formData.Financing_option || formData.project_type || '').toLowerCase();
     
     if (projectType.includes('working capital')) return 'Working Capital';
     if (projectType.includes('pre-dev') || projectType.includes('predevelopment')) return 'Pre-Development';
     if (projectType.includes('construction plus')) return 'Construction Plus';
     if (projectType.includes('construction')) return 'Construction';
     if (projectType.includes('bridge')) return 'Bridge';
+    if (projectType.includes('permanent debt')) return 'Permanent Debt';
+    if (projectType.includes('other')) return 'Other';
     
     return 'Bridge'; // default
   }
@@ -259,7 +276,7 @@ class AutomationService {
 
   getDirectFormMappings(formData) {
     return {
-      // Point of Contact
+      // Point of Contact (Primary)
       first_name: formData.first_name || '[First Name]',
       last_name: formData.last_name || '[Last Name]',
       email: formData.email || formData.contact_email || '[Email]',
@@ -267,10 +284,19 @@ class AutomationService {
       linkedin: formData.linkedin || '[LinkedIn Profile]',
       mobile_phone: formData.mobile_phone || '[Mobile Phone]',
       
+      // Point of Contact (Issuer POC - if different)
+      first_name_poc: formData.first_name_poc || formData.first_name || '[First Name POC]',
+      last_name_poc: formData.last_name_poc || formData.last_name || '[Last Name POC]',
+      title_poc: formData.title_poc || formData.title || '[Title POC]',
+      email_poc: formData.email_poc || formData.email || formData.contact_email || '[Email POC]',
+      mobile_phone_poc: formData.mobile_phone_poc || formData.mobile_phone || '[Mobile Phone POC]',
+      linkedin_poc: formData.linkedin_poc || formData.linkedin || '[LinkedIn Profile POC]',
+      
       // Business Information
       business_legal_name: formData.business_legal_name || '[Business Legal Name]',
+      dba: formData.dba || '[DBA]',
       ein: formData.ein || '[EIN]',
-      Entity_type: formData.Entity_type || '[Entity Type]',
+      entity_type: formData.entity_type || formData.Entity_type || '[Entity Type]',
       state_incorporation: formData.state_incorporation || '[State of Incorporation]',
       date_incorporation: formData.date_incorporation || '[Date of Incorporation]',
       fiscal_year_end: formData.fiscal_year_end || '[Fiscal Year End]',
@@ -290,20 +316,20 @@ class AutomationService {
       city_project: formData.city_project || '[Project City]',
       state_project: formData.state_project || '[Project State]',
       zip_project: formData.zip_project || '[Project ZIP]',
-      Name_plate_capacity: formData.Name_plate_capacity || '[Nameplate Capacity]',
-      target_offering_amount: formData.target_offering_amount || '[Target Amount]',
-      maximum_offering_amount: formData.maximum_offering_amount || '[Maximum Amount]',
+      name_plate_capacity: formData.name_plate_capacity || formData.Name_plate_capacity || '[Nameplate Capacity]',
+      target_issuer: formData.target_issuer || formData.target_offering_amount || '[Target Amount]',
+      maximum_issuer: formData.maximum_issuer || formData.maximum_offering_amount || '[Maximum Amount]',
       deadline: formData.deadline || '[Funding Deadline]',
       project_description: formData.project_description || '[Project Description]',
+      use_of_funds: formData.use_of_funds || '[Use of Funds]',
       
       // Financing
-      Financing_option: formData.Financing_option || '[Financing Option]',
+      financing_option: formData.financing_option || formData.Financing_option || '[Financing Option]',
       financing_other: formData.financing_other || '[Other Financing Details]',
       financing_requirements: formData.financing_requirements || '[Financing Requirements]',
-      term: formData.term || '[Term]',
-      rate: formData.rate || '[Interest Rate]',
+      term_months: formData.term_months || formData.term || '[Term Months]',
+      interest_rate: formData.interest_rate || formData.rate || '[Interest Rate]',
       timeline: formData.timeline || '[Timeline]',
-      use_of_funds: formData.use_of_funds || '[Use of Funds]',
       
       // Legacy fields for compatibility
       contact_email: formData.contact_email || formData.email || '[Contact Email]',
@@ -374,7 +400,10 @@ class AutomationService {
       
       // Contact information
       authorized_signatory: formData.authorized_signatory || formData.contact_name || '[Authorized Signatory]',
-      title: formData.title || '[Title]'
+      title: formData.title || '[Title]',
+      
+      // Additional Phase 1 fields
+      phase_one_submission: formData.phase_one_submission || formData.submission_time || new Date().toISOString() || '[Phase One Submission Date]'
     };
   }
 
@@ -468,7 +497,13 @@ class AutomationService {
       'line_of_credit': 'working_capital',
       'predevelopment': 'predevelopment',
       'pre_development': 'predevelopment',
-      'development_capital': 'predevelopment'
+      'development_capital': 'predevelopment',
+      'permanent_debt': 'permanent_debt',
+      'permanent': 'permanent_debt',
+      'term_loan': 'permanent_debt',
+      'other': 'other',
+      'custom': 'other',
+      'alternative': 'other'
     };
 
     const mappedType = typeMapping[projectTypeKey] || projectTypeKey;

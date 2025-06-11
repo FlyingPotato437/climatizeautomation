@@ -215,6 +215,42 @@ Financial Structure:
 - Contingency Reserve: \${{contingency_reserve}}
 - Expected Return: {{expected_return}}%
 `
+,
+  permanent_debt: String.raw`
+PERMANENT DEBT FINANCING TERM SHEET
+
+Financing Type: Permanent Debt
+Loan Amount: \${{loan_amount}}
+Interest Rate: {{interest_rate}}%
+Term Length: {{term_length}} years
+
+Key Terms:
+- Amortization Period: {{amortization_period}} years
+- Loan-to-Value Ratio: {{ltv_ratio}}%
+- Debt Service Coverage Ratio: {{dscr}}x
+- Prepayment Penalty: {{prepayment_penalty}}
+- Collateral: {{collateral_description}}
+
+Fees and Costs:
+- Origination Fee: {{origination_fee}}%
+- Legal Fees: \${{legal_fees}}
+- Other Closing Costs: \${{closing_costs}}
+`,
+
+  other: String.raw`
+OTHER FINANCING TERM SHEET
+
+Financing Description: {{financing_other}}
+Amount Requested: \${{funding_amount}}
+Interest Rate / Return: {{interest_rate}}
+Term / Maturity: {{term_length}} months
+
+Key Terms:
+- Structure: {{financing_structure}}
+- Use of Funds: {{use_of_funds}}
+- Collateral: {{collateral_description}}
+- Requirements: {{financing_requirements}}
+`
 };
 
 module.exports = termSheets;

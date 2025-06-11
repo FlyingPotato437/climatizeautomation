@@ -98,8 +98,9 @@ app.post('/webhook/fillout', async (req, res) => {
       documents: {
         mnda: result.documents.mnda.id,
         poa: result.documents.poa.id,
-        termSheet: result.documents.termSheet.id,
-        formId: result.documents.formId.id
+        projectOverview: result.documents.projectOverview.id,
+        formId: result.documents.formId.id,
+        termSheet: result.documents.termSheet.id
       },
       folderId: result.folders.main.id
     });
@@ -298,18 +299,42 @@ function extractFromFilloutQuestions(questions, webhookBody) {
   const fieldMappings = {
     'first_name_1': 'first_name',
     'first_name': 'first_name',
+    'first_name_poc': 'first_name_poc',
     'last_name': 'last_name',
+    'last_name_poc': 'last_name_poc',
     'business_name': 'business_legal_name',
     'company_name': 'business_legal_name',
     'legal_name': 'business_legal_name',
     'business_legal_name': 'business_legal_name',
+    'dba': 'dba',
+    'doing_business_as': 'dba',
     'email': 'contact_email',
     'email_address': 'contact_email',
     'contact_email': 'contact_email',
+    'email_poc': 'email_poc',
     'project': 'project_type',
     'project_type': 'project_type',
     'financing_option': 'financing_option',
-    'financing_type': 'financing_option'
+    'financing_type': 'financing_option',
+    'nameplate_capacity': 'name_plate_capacity',
+    'name_plate_capacity': 'name_plate_capacity',
+    'target_amount': 'target_issuer',
+    'target_issuer': 'target_issuer',
+    'maximum_amount': 'maximum_issuer',
+    'maximum_issuer': 'maximum_issuer',
+    'financing_other': 'financing_other',
+    'other_financing': 'financing_other',
+    'term_months': 'term_months',
+    'desired_term': 'term_months',
+    'interest_rate': 'interest_rate',
+    'desired_rate': 'interest_rate',
+    'linkedin_poc': 'linkedin_poc',
+    'linkedin_profile': 'linkedin_poc',
+    'mobile_phone_poc': 'mobile_phone_poc',
+    'phone_poc': 'mobile_phone_poc',
+    'title_poc': 'title_poc',
+    'submission_date': 'phase_one_submission',
+    'phase_one_submission': 'phase_one_submission'
   };
   
   // Apply mappings
