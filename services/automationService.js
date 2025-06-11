@@ -218,8 +218,9 @@ class AutomationService {
   }
 
   async prepareDocumentReplacements(formData) {
-    // Get the appropriate term sheet content
-    const termSheetContent = this.getTermSheetContent(formData.project_type, formData);
+    // Get the appropriate term sheet content using consistent project type detection
+    const projectType = formData.financing_option || formData.Financing_option || formData.project_type;
+    const termSheetContent = this.getTermSheetContent(projectType, formData);
     
     // Base form data mappings
     const directMappings = this.getDirectFormMappings(formData);
@@ -386,7 +387,7 @@ class AutomationService {
 
   async generateAIContent(formData) {
     // For now, return smart defaults. Later we can add AI integration
-    const projectType = formData.project_type?.toLowerCase() || 'general';
+    const projectType = (formData.financing_option || formData.Financing_option || formData.project_type || '').toLowerCase();
     
     return {
       // Technical Specifications
@@ -432,16 +433,14 @@ class AutomationService {
       square_footage: formData.square_footage || '[Square Footage]',
       ppa_details: this.calculatePPADetails(formData),
       
-      // Fields needing analysis
+      // Fields needing analysis - only fields NOT already in getDirectFormMappings
       ar_eligibility: formData.ar_eligibility || '80% of qualifying receivables under 90 days',
       equity_participation: formData.equity_participation || '[Equity Participation %]',
       financing_structure: this.getFinancingStructure(formData),
-      interest_rate: formData.interest_rate || '[Interest Rate]',
       inventory_eligibility: formData.inventory_eligibility || 'Finished goods inventory only',
       renewal_options: formData.renewal_options || 'Annual renewal subject to review',
       reporting_requirements: this.getReportingRequirements(formData),
       total_interest: this.calculateTotalInterest(formData),
-      use_of_funds: this.getUseOfFunds(formData),
       verification_protocol: this.getVerificationProtocol(formData)
     };
   }
