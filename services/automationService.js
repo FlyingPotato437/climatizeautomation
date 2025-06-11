@@ -162,7 +162,7 @@ class AutomationService {
     const projectType = (formData.financing_option || formData.Financing_option || formData.project_type || '').toLowerCase();
     
     if (projectType.includes('working capital')) return '1MZ1W52MApg4-Vv6NHdk9atomByH7VYQ5WfSCxQyGtqw';
-    if (projectType.includes('pre-dev') || projectType.includes('predevelopment')) return '1vrmDNpoD8JFFlhDID-mNpOQUeIvh-6EERCUbpnmOHG8';
+    if (projectType.includes('pre-development') || projectType.includes('pre-dev') || projectType.includes('predevelopment')) return '1vrmDNpoD8JFFlhDID-mNpOQUeIvh-6EERCUbpnmOHG8';
     if (projectType.includes('construction plus')) return '128EYSDnvbDiiUvQNgLotuG4PzE4L3NXTwv-c94T9fbM';
     if (projectType.includes('construction')) return '1GYhaPRGAfXdGDVojKYu4VdJ_FU46IBYiPc5mwmsxUe0';
     if (projectType.includes('bridge')) return '1beRm9hyiPmpwJ_2NXeT4JvsM1J5HaVNMwd7yosIJiAM';
@@ -176,7 +176,7 @@ class AutomationService {
     const projectType = (formData.financing_option || formData.Financing_option || formData.project_type || '').toLowerCase();
     
     if (projectType.includes('working capital')) return 'working_capital';
-    if (projectType.includes('pre-dev') || projectType.includes('predevelopment')) return 'predev';
+    if (projectType.includes('pre-development') || projectType.includes('pre-dev') || projectType.includes('predevelopment')) return 'predevelopment';
     if (projectType.includes('construction plus')) return 'construction_plus';
     if (projectType.includes('construction')) return 'construction';
     if (projectType.includes('bridge')) return 'bridge';
@@ -190,7 +190,7 @@ class AutomationService {
     const projectType = (formData.financing_option || formData.Financing_option || formData.project_type || '').toLowerCase();
     
     if (projectType.includes('working capital')) return 'Working Capital';
-    if (projectType.includes('pre-dev') || projectType.includes('predevelopment')) return 'Pre-Development';
+    if (projectType.includes('pre-development') || projectType.includes('pre-dev') || projectType.includes('predevelopment')) return 'Pre-Development';
     if (projectType.includes('construction plus')) return 'Construction Plus';
     if (projectType.includes('construction')) return 'Construction';
     if (projectType.includes('bridge')) return 'Bridge';
