@@ -202,40 +202,17 @@ class AutomationService {
 
 
   async prepareAllReplacements(formData) {
-    // Get comprehensive replacements including all possible variables
+    // Get comprehensive replacements - case sensitive, exact matches only
     const baseReplacements = await this.prepareDocumentReplacements(formData);
     
-    // Add multiple placeholder patterns ONLY for known field names
+    // Return exactly as provided - no case conversion or pattern variations
     const allReplacements = {};
     Object.keys(baseReplacements).forEach(key => {
       const value = baseReplacements[key] || 'N/A';
-      // Add all possible patterns for actual field names only
-      allReplacements[key] = value;                    // bare: business_legal_name
-      allReplacements[`{{${key}}}`] = value;           // curly: {{business_legal_name}}
-      allReplacements[`[${key}]`] = value;             // square: [business_legal_name]
-      
-      // Convert underscores to spaces and title case for square brackets, but avoid common words
-      const skipTitleCase = ['term', 'rate', 'technology', 'tech', 'name', 'type', 'option'];
-      if (!skipTitleCase.includes(key.toLowerCase())) {
-        const titleCase = key.split('_').map(word => 
-          word.charAt(0).toUpperCase() + word.slice(1)
-        ).join(' ');
-        allReplacements[`[${titleCase}]`] = value;       // [Business Legal Name]
-      }
+      allReplacements[key] = value;                    // exact key match only
+      allReplacements[`{{${key}}}`] = value;           // exact {{key}} match only
+      allReplacements[`[${key}]`] = value;             // exact [key] match only
     });
-    
-    // Add special mappings for template inconsistencies
-    allReplacements['legal_business_name'] = formData.business_legal_name || formData.legal_business_name || 'N/A';
-    allReplacements['first_name last_name'] = `${formData.first_name || ''} ${formData.last_name || ''}`.trim() || 'N/A';
-    
-    // Add specific missing field mappings
-    allReplacements['[Fiscal Year End]'] = formData.fiscal_year_end || 'December 31';
-    allReplacements['[Mobile Phone]'] = formData.mobile_phone || formData.phone_issuer || 'N/A';
-    allReplacements['[Project Name]'] = formData.project_name || 'N/A';
-    allReplacements['[Interest Rate]'] = formData.rate || formData.interest_rate || 'N/A';
-    allReplacements['[Target Amount]'] = formData.target_offering_amount || 'N/A';
-    allReplacements['[Maximum Amount]'] = formData.maximum_offering_amount || 'N/A';
-    allReplacements['[Funding Deadline]'] = formData.deadline || 'N/A';
     
     return allReplacements;
   }
@@ -519,11 +496,12 @@ class AutomationService {
   replacePlaceholdersInTermSheet(termSheetTemplate, formData) {
     let content = termSheetTemplate;
     
-    // Replace placeholders in the term sheet content
+    // Replace placeholders in the term sheet content - case sensitive exact matches only
     Object.keys(formData).forEach(key => {
       const placeholder = `{{${key}}}`;
-      const value = formData[key] || `[${key.replace(/_/g, ' ').toUpperCase()}]`;
-      content = content.replace(new RegExp(placeholder, 'g'), value);
+      const value = formData[key] || `[${key}]`;
+      // Use case-sensitive replacement, not regex with 'i' flag
+      content = content.split(placeholder).join(value);
     });
 
     return content;
