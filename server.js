@@ -289,8 +289,8 @@ function extractFromFilloutQuestions(questions, webhookBody) {
         .replace(/\s+/g, '_') // Replace spaces with underscores
         .trim();
       
-      // Store value even if null (for test webhooks), but use placeholder for nulls
-      formData[fieldName] = question.value || `[${question.name}]`;
+      // Store the actual value - let automationService handle defaults
+      formData[fieldName] = question.value;
       console.log(`Mapped question "${question.name}" -> ${fieldName} = ${formData[fieldName]}`);
     }
   });

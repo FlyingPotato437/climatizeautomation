@@ -60,8 +60,14 @@ class GoogleDocsService {
       // Prepare batch update requests
       const requests = [];
 
-      // Create replacement requests for each variable (direct replacement, no brackets)
-      for (const [variable, replacement] of Object.entries(replacements)) {
+      // Sort variables by length (longest first) to prevent partial word replacements
+      // For example, "technology" should be processed before "tech" to avoid conflicts
+      const sortedVariables = Object.keys(replacements).sort((a, b) => b.length - a.length);
+
+      // Create replacement requests for each variable
+      for (const variable of sortedVariables) {
+        const replacement = replacements[variable];
+        
         // Ensure replacement is a string, not an object
         let replaceText = '';
         if (replacement && typeof replacement === 'object') {

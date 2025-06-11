@@ -205,13 +205,14 @@ class AutomationService {
     // Get comprehensive replacements - case sensitive, exact matches only
     const baseReplacements = await this.prepareDocumentReplacements(formData);
     
-    // Return exactly as provided - no case conversion or pattern variations
+    // ONLY use delimited variables to prevent partial word replacements
+    // Templates must use {{variable}} or [variable] format, not bare variables
     const allReplacements = {};
     Object.keys(baseReplacements).forEach(key => {
       const value = baseReplacements[key] || 'N/A';
-      allReplacements[key] = value;                    // exact key match only
-      allReplacements[`{{${key}}}`] = value;           // exact {{key}} match only
-      allReplacements[`[${key}]`] = value;             // exact [key] match only
+      // Skip bare variables completely - only use delimited versions
+      allReplacements[`{{${key}}}`] = value;           // {{variable}} format
+      allReplacements[`[${key}]`] = value;             // [variable] format
     });
     
     return allReplacements;
