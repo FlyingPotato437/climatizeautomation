@@ -29,26 +29,140 @@ class Phase1AutomationService {
     }
   }
 
+  preprocessFormData(formData) {
+    console.log('=== PREPROCESSING FORM DATA ===');
+    console.log('Raw form keys:', Object.keys(formData));
+    
+    // Handle address parsing helper function
+    const parseAddress = (addressString) => {
+      if (!addressString) return { address: '', city: '', state: '', zip: '' };
+      
+      // Handle format: "30512 Ratliff Road\nSan Benito Texas 78586\nUnited States"
+      const lines = addressString.split('\n').map(line => line.trim()).filter(line => line);
+      if (lines.length >= 2) {
+        const address = lines[0] || '';
+        const cityStateZip = lines[1] || '';
+        const parts = cityStateZip.split(' ');
+        const zip = parts[parts.length - 1] || '';
+        const state = parts[parts.length - 2] || '';
+        const city = parts.slice(0, -2).join(' ') || '';
+        
+        return { address, city, state, zip };
+      }
+      
+      return { address: addressString, city: '', state: '', zip: '' };
+    };
+
+    // Parse business address
+    const businessAddr = parseAddress(formData['Business Address']);
+    // Parse project address  
+    const projectAddr = parseAddress(formData['Address']);
+
+    // Map actual form field names to internal field names
+    const processedData = {
+      // === POC CONTACT INFORMATION ===
+      first_name_poc: formData['First Name'] || '',
+      last_name_poc: formData['Last Name'] || '',
+      title_poc: formData['Title'] || '',
+      email_poc: formData['Email'] || '',
+      mobile_phone_poc: formData['Phone Number'] || '',
+      linkedin_poc: formData['LinkedIn'] || '',
+      
+      // === SIGNER INFORMATION (numbered fields) ===
+      first_name_sign: formData['First Name (1)'] || '',
+      last_name_sign: formData['Last Name (1)'] || '',
+      title_sign: formData['Title (1)'] || '',
+      email_sign: formData['Email (1)'] || '',
+      linkedin_sign: formData['LinkedIn (1)'] || '',
+      
+      // === BUSINESS INFORMATION ===
+      business_legal_name: formData['Business Legal Name'] || '',
+      doing_business_as: formData['DBA (Doing Buisness As)'] || formData['DBA (Doing Business As)'] || '',
+      ein_number: formData['EIN'] || '',
+      entity_type: formData['Type of Entity'] || '',
+      state_incorporation: formData['State of Incorporation'] || '',
+      date_incorporation: formData['Incorporation Date'] || '',
+      fiscal_year_end: formData['Fiscal Year End'] || '',
+      website_issuer: formData['Website'] || '',
+      
+      // === BUSINESS ADDRESS ===
+      address_issuer: businessAddr.address,
+      city_issuer: businessAddr.city,
+      state_issuer: businessAddr.state,
+      zip_issuer: businessAddr.zip,
+      phone_issuer: formData['Business Phone'] || '',
+      business_description: formData['Business Description'] || '',
+      
+      // === PROJECT INFORMATION ===
+      tech_offering: formData['What technology are you raising capital for?'] || '',
+      other_tech: formData['Please specify your technology'] || '',
+      project_name: formData['Project or Portfolio Name'] || '',
+      
+      // === PROJECT ADDRESS ===
+      address_project: projectAddr.address,
+      city_project: projectAddr.city,
+      state_project: projectAddr.state,
+      zip_project: projectAddr.zip,
+      
+      // === PROJECT DETAILS & FINANCIAL ===
+      name_plate_capacity: formData['Project Size'] || '',
+      target_issuer: formData['Minimum Capital Needed'] || '',
+      maximum_issuer: formData['Maximum Capital Needed'] || '',
+      deadline_offering: formData['By when do you need the capital?'] || '',
+      project_description: formData['Project Description'] || '',
+      use_of_funds: formData['Describe the use of funds'] || '',
+      
+      // === FINANCING INFORMATION ===
+      financing_option: formData['Which of the options above is a better fit for your project?'] || '',
+      financing_other: formData['If other, please specify'] || '',
+      financing_requirements: formData['Do you have any preferred terms or requirements?'] || '',
+      interest_rate: formData['Desired Rate'] || '',
+      term_months: formData['Desired Term'] || '',
+      
+      // === LEGACY COMPATIBILITY - keep any existing fields that might be used ===
+      contact_email: formData['Email'] || formData.contact_email || '',
+      contact_name: `${formData['First Name'] || ''} ${formData['Last Name'] || ''}`.trim() || formData.contact_name || '',
+      project_type: formData['What technology are you raising capital for?'] || formData.project_type || '',
+      
+      // === PRESERVE ANY ADDITIONAL FIELDS ===
+      ...formData  // Keep original fields as fallback
+    };
+
+    console.log('=== PROCESSED FORM DATA ===');
+    console.log('Business name:', processedData.business_legal_name);
+    console.log('Contact name:', processedData.contact_name);
+    console.log('Project name:', processedData.project_name);
+    console.log('Technology:', processedData.tech_offering);
+    console.log('Financing option:', processedData.financing_option);
+    console.log('================================');
+    
+    return processedData;
+  }
+
   async processNewLead(formData) {
     try {
-      console.log('Processing new lead:', formData.business_legal_name);
+      // Preprocess form data to convert display names to internal field names
+      const processedFormData = this.preprocessFormData(formData);
+      console.log('Processing new lead:', processedFormData.business_legal_name);
       
       // Initialize services if needed
       this.initializeServices();
 
       // Step 1: Create client folder structure in "Leads Phase 1"
-      const folders = await this.createClientFolders(formData.business_legal_name);
+      const folders = await this.createClientFolders(processedFormData.business_legal_name);
       
       // Step 2: Create all separate documents in Internal folder
-      const documents = await this.createAllDocuments(formData, folders.internal.id);
+      const documents = await this.createAllDocuments(processedFormData, folders.internal.id);
       
-      // Step 3: Set folder permissions (skip if email is placeholder)
-      const clientEmail = formData.contact_email || formData.email;
-      if (clientEmail && !clientEmail.startsWith('[') && clientEmail.includes('@')) {
-        await this.setFolderPermissions(folders, clientEmail);
-      } else {
-        console.log('Skipping folder permissions - no valid email provided');
-      }
+      // Step 3: Set folder permissions (TEMPORARILY DISABLED FOR TESTING)
+      const clientEmail = processedFormData.contact_email || processedFormData.email_poc;
+      console.log(`📧 Client email: ${clientEmail}`);
+      console.log('⏭️ SKIPPING folder permissions for testing - will re-enable later');
+      // if (clientEmail && !clientEmail.startsWith('[') && clientEmail.includes('@')) {
+      //   await this.setFolderPermissions(folders, clientEmail);
+      // } else {
+      //   console.log('Skipping folder permissions - no valid email provided');
+      // }
       
       // Step 4: Send client welcome email (disabled for now)
       // await this.sendClientWelcomeEmail(formData);
@@ -59,14 +173,14 @@ class Phase1AutomationService {
       // Step 6: Create lead tracking entry for Phase 2 linkage
       console.log('Creating lead tracking entry...');
       const leadId = await this.leadTrackingService.createLead({
-        business_legal_name: formData.business_legal_name,
+        business_legal_name: processedFormData.business_legal_name,
         phase1_folder_id: folders.main.id,
-        phase1_submission_data: formData
+        phase1_submission_data: processedFormData
       });
 
       const result = {
         success: true,
-        client: formData.business_legal_name,
+        client: processedFormData.business_legal_name,
         lead_id: leadId,
         folders: folders,
         documents: documents,
@@ -202,35 +316,69 @@ class Phase1AutomationService {
     // Get comprehensive replacements - case sensitive, exact matches only
     const baseReplacements = await this.prepareDocumentReplacements(formData);
     
-    // Detect if this is an empty form submission (all values null/empty)
-    const hasAnyRealData = Object.values(baseReplacements).some(value => 
-      value !== null && value !== undefined && value !== '' && 
-      value !== '[N/A]' && !String(value).startsWith('[') && !String(value).endsWith(']')
-    );
+    // Check if we have actual form data (not the default fallback placeholders)
+    const hasRealFormData = Object.keys(formData).length > 0 && 
+      Object.values(formData).some(value => 
+        value !== null && value !== undefined && value !== ''
+      );
     
     console.log('=== FORM DATA ANALYSIS ===');
-    console.log('Has real data:', hasAnyRealData);
-    console.log('Business name:', baseReplacements.business_legal_name);
-    console.log('Contact email:', baseReplacements.email || baseReplacements.contact_email);
+    console.log('Has real form data:', hasRealFormData);
+    console.log('Form data keys:', Object.keys(formData));
+    console.log('Business name from form:', formData.business_legal_name);
+    console.log('Contact email from form:', formData.contact_email || formData.email_poc);
     console.log('============================');
     
-    // If this appears to be a test/empty submission, use realistic demo data
-    const useTestData = !hasAnyRealData || baseReplacements.business_legal_name === null;
+    // Use test data only if we have NO real form data at all
+    const useTestData = !hasRealFormData;
     
     // Support ALL variable formats: bare variables, {{variable}}, and [variable]
     const allReplacements = {};
+
+    // ---------------- WHITELIST ------------------
+    // Only these canonical variable keys (and their derived variants) are allowed to appear.
+    const allowedKeys = new Set([
+      // Top-level
+      'project_name', 'phase_one_submission',
+
+      // POC
+      'first_name_poc','last_name_poc','title_poc','email_poc','mobile_phone_poc','linkedin_poc',
+      // Signer
+      'first_name_sign','last_name_sign','title_sign','email_sign','linkedin_sign','mobile_phone_sign',
+      // Business
+      'business_legal_name','doing_business_as','ein_number','entity_type','state_incorporation','date_incorporation','fiscal_year_end','website_issuer',
+      'address_issuer','city_issuer','state_issuer','zip_issuer','phone_issuer','business_description',
+      // Project
+      'tech_offering','other_tech','address_project','city_project','state_project','zip_project','name_plate_capacity',
+      'target_issuer','maximum_issuer','deadline_offering','project_description','use_of_funds',
+      // Financing
+      'financing_option','financing_other','financing_requirements','interest_rate','term_months',
+      
+      // === TEMPLATE COMPATIBILITY VARIABLES ===
+      // Base variables that templates actually use (mapped from _poc/_sign forms)
+      'first_name', 'last_name', 'title', 'email', 'mobile_phone', 'linkedin',
+      'ein', 'website', 'tech', 'deadline', 'term', 'rate', 'timeline',
+      'target_offering_amount', 'maximum_offering_amount',
+      
+      // System variables
+      'current_date', 'current_time', 'form_id', 'calendar_link', 'term_sheet_content',
+      
+      // Template-specific variables that need mappings
+      'Financing_option', 'Entity_type', 'Name_plate_capacity'
+    ]);
+
+    //------------------------------------------------
+
     Object.keys(baseReplacements).forEach(key => {
+      if (!allowedKeys.has(key)) return;   // ❌ Skip any legacy / unapproved variable
+
       const value = baseReplacements[key];
       
       // Handle null/undefined/empty cases with intelligent fallbacks
       let processedValue = '';
       if (value === null || value === undefined || value === '') {
-        if (useTestData) {
-          // Provide realistic test data instead of placeholders
-          processedValue = this.getTestDataFallback(key);
-        } else {
-          processedValue = `[${key}]`; // Use placeholder format for missing values
-        }
+        // Always use test data fallbacks for missing values
+        processedValue = this.getTestDataFallback(key);
       } else if (typeof value === 'object') {
         processedValue = JSON.stringify(value);
       } else {
@@ -238,8 +386,42 @@ class Phase1AutomationService {
       }
       
       // Support SAFE delimited variable formats used in templates:
-      allReplacements[`{{${key}}}`] = processedValue;  // {{variable}} format
-      allReplacements[`[${key}]`] = processedValue;    // [variable] format
+      const baseCurly = `{{${key}}}`;
+      const baseSquare = `[${key}]`;
+      allReplacements[baseCurly] = processedValue;  // {{variable}} format
+      allReplacements[baseSquare] = processedValue; // [variable] format
+      allReplacements[key] = processedValue;        // bare variable format
+
+      // NEW: double-square variant e.g. [[variable]] (covers docs that wrap {{}} with [])
+      allReplacements[`[[${key}]]`] = processedValue;
+
+      // --- NEW: add variants with spaces (e.g., "first_name_poc" -> "first name poc")
+      if (key.includes('_')) {
+        const spaced = key.replace(/_/g, ' ');
+        const titleSpaced = spaced.replace(/\b\w/g, chr => chr.toUpperCase()); // Title Case
+
+        // lower-case spaced variants
+        allReplacements[`{{${spaced}}}`] = processedValue;
+        allReplacements[`[${spaced}]`] = processedValue;
+        allReplacements[`[[${spaced}]]`] = processedValue;
+        allReplacements[spaced] = processedValue;
+
+        // Title Case spaced variants (matches templates like "[First Name POC]")
+        allReplacements[`{{${titleSpaced}}}`] = processedValue;
+        allReplacements[`[${titleSpaced}]`] = processedValue;
+        allReplacements[`[[${titleSpaced}]]`] = processedValue;
+        allReplacements[titleSpaced] = processedValue;
+
+        // --- NEW variant: last token upper-cased to handle acronyms like "POC"
+        const parts = spaced.split(' ');
+        if (parts.length > 1) {
+          const lastUpper = parts.slice(0, -1).map(w => w.charAt(0).toUpperCase() + w.slice(1)).concat(parts[parts.length - 1].toUpperCase()).join(' ');
+          allReplacements[`{{${lastUpper}}}`] = processedValue;
+          allReplacements[`[${lastUpper}]`] = processedValue;
+          allReplacements[`[[${lastUpper}]]`] = processedValue;
+          allReplacements[lastUpper] = processedValue;
+        }
+      }
     });
     
     // Add debug logging
@@ -301,85 +483,100 @@ class Phase1AutomationService {
       phase_one_submission: formData.phase_one_submission || formData.submission_time || new Date().toISOString(),
       
       // Contact Information (Issuer Point of Contact) 
-      first_name_poc: formData.first_name_poc || formData.first_name || '[First Name POC]',
-      last_name_poc: formData.last_name_poc || formData.last_name || '[Last Name POC]',
-      title_poc: formData.title_poc || formData.title || '[Title POC]',
-      email_poc: formData.email_poc || formData.email || formData.contact_email || '[Email POC]',
-      mobile_phone_poc: formData.mobile_phone_poc || formData.mobile_phone || formData.phone_number || '[Mobile Phone POC]',
-      linkedin_poc: formData.linkedin_poc || formData.linkedin || '[LinkedIn POC]',
-      
-      // Signer Information (person with authority to sign documents)
-      first_name: formData.first_name || '[First Name]',
-      last_name: formData.last_name || '[Last Name]',
-      title: formData.title || '[Title]',
-      email: formData.email || formData.contact_email || '[Email]',
-      linkedin: formData.linkedin || '[LinkedIn Profile]',
-      mobile_phone: formData.mobile_phone || formData.phone_number || '[Mobile Phone]',
+      first_name_poc: formData.first_name_poc || formData.first_name,
+      last_name_poc: formData.last_name_poc || formData.last_name,
+      title_poc: formData.title_poc,
+      email_poc: formData.email_poc || formData.contact_email,
+      mobile_phone_poc: formData.mobile_phone_poc || formData.mobile_phone || formData.phone_number,
+      linkedin_poc: formData.linkedin_poc || formData.linkedin,
       
       // Signer Information (with _sign suffix for templates)
-      first_name_sign: formData.first_name_sign || formData.first_name || '[Signer First Name]',
-      last_name_sign: formData.last_name_sign || formData.last_name || '[Signer Last Name]',
-      title_sign: formData.title_sign || formData.title || '[Signer Title]',
-      email_sign: formData.email_sign || formData.email || formData.contact_email || '[Signer Email]',
-      linkedin_sign: formData.linkedin_sign || formData.linkedin || '[Signer LinkedIn]',
-      mobile_phone_sign: formData.mobile_phone_sign || formData.mobile_phone || formData.phone_number || '[Signer Mobile Phone]',
+      first_name_sign: formData.first_name_sign || formData.first_name,
+      last_name_sign: formData.last_name_sign || formData.last_name,
+      title_sign: formData.title_sign,
+      email_sign: formData.email_sign || formData.contact_email,
+      linkedin_sign: formData.linkedin_sign || formData.linkedin,
+      mobile_phone_sign: formData.mobile_phone_sign || formData.mobile_phone || formData.phone_number,
       
-      // Business Information
-      business_legal_name: formData.business_legal_name || '[Business Legal Name]',
-      dba: formData.dba || '[DBA]',
-      doing_business_as: formData.doing_business_as || formData.dba || '[DBA]',
-      ein: formData.ein || '[EIN]',
-      ein_number: formData.ein_number || formData.ein || '[EIN]',
-      entity_type: formData.entity_type || formData.Entity_type || '[Entity Type]',
-      state_incorporation: formData.state_incorporation || '[State of Incorporation]',
-      date_incorporation: formData.date_incorporation || '[Date of Incorporation]',
-      fiscal_year_end: formData.fiscal_year_end || '[Fiscal Year End]',
-      website: formData.website || '[Website]',
-      website_issuer: formData.website_issuer || formData.website || '[Website]',
+      // Business Information - Using exact field names from user specification
+      business_legal_name: formData.business_legal_name,
+      doing_business_as: formData.doing_business_as,
+      ein_number: formData.ein_number,
+      entity_type: formData.entity_type,
+      state_incorporation: formData.state_incorporation,
+      date_incorporation: formData.date_incorporation,
+      fiscal_year_end: formData.fiscal_year_end,
+      website_issuer: formData.website_issuer,
       
       // Business Address
-      address_issuer: formData.address_issuer || '[Business Address]',
-      city_issuer: formData.city_issuer || '[Business City]',
-      state_issuer: formData.state_issuer || '[Business State]',
-      zip_issuer: formData.zip_issuer || '[Business ZIP]',
-      phone_issuer: formData.phone_issuer || '[Business Phone]',
-      business_description: formData.business_description || '[Business Description]',
+      address_issuer: formData.address_issuer,
+      city_issuer: formData.city_issuer,
+      state_issuer: formData.state_issuer,
+      zip_issuer: formData.zip_issuer,
+      phone_issuer: formData.phone_issuer,
+      business_description: formData.business_description,
       
       // Project Information
-      tech: formData.tech || '[Technology]',
-      tech_offering: formData.tech_offering || formData.tech || '[Technology]',
-      other_tech: formData.other_tech || '[Other Technology Details]',
-      project_name: formData.project_name || '[Project Name]',
+      tech_offering: formData.tech_offering,
+      other_tech: formData.other_tech,
+      project_name: formData.project_name,
       
       // Project Address (separate from business address)
-      address_project: formData.address_project || '[Project Address]',
-      city_project: formData.city_project || '[Project City]',
-      state_project: formData.state_project || '[Project State]',
-      zip_project: formData.zip_project || '[Project ZIP]',
+      address_project: formData.address_project,
+      city_project: formData.city_project,
+      state_project: formData.state_project,
+      zip_project: formData.zip_project,
       
-      // Project Details & Financial
-      name_plate_capacity: formData.name_plate_capacity || formData.Name_plate_capacity || '[Nameplate Capacity]',
-      target_issuer: formData.target_issuer || formData.target_offering_amount || '[Target Amount]',
-      maximum_issuer: formData.maximum_issuer || formData.maximum_offering_amount || '[Maximum Amount]',
-      maximum_offering_amount: formData.maximum_offering_amount || formData.maximum_issuer || '[Maximum Amount]',
-      deadline: formData.deadline || '[Funding Deadline]',
-      deadline_offering: formData.deadline_offering || formData.deadline || '[Funding Deadline]',
-      project_description: formData.project_description || '[Project Description]',
-      use_of_funds: formData.use_of_funds || '[Use of Funds]',
+      // Project Details & Financial - Using exact field names from user specification
+      name_plate_capacity: formData.name_plate_capacity,
+      target_issuer: formData.target_issuer,
+      maximum_issuer: formData.maximum_issuer,
+      deadline_offering: formData.deadline_offering,
+      project_description: formData.project_description,
+      use_of_funds: formData.use_of_funds,
       
       // Financing Information
-      financing_option: formData.financing_option || formData.Financing_option || '[Financing Option]',
-      financing_other: formData.financing_other || '[Other Financing Details]',
-      financing_requirements: formData.financing_requirements || '[Financing Requirements]',
-      interest_rate: formData.interest_rate || formData.rate || '[Interest Rate]',
-      term_months: formData.term_months || formData.term || '[Term Months]',
+      financing_option: formData.financing_option,
+      financing_other: formData.financing_other,
+      financing_requirements: formData.financing_requirements,
+      interest_rate: formData.interest_rate,
+      term_months: formData.term_months,
       
       // === LEGACY COMPATIBILITY FIELDS ===
-      contact_email: formData.contact_email || formData.email || formData.email_poc || '[Contact Email]',
+      contact_email: formData.contact_email || formData.email_poc || '[Contact Email]',
       contact_name: formData.contact_name || `${formData.first_name || ''} ${formData.last_name || ''}`.trim() || '[Contact Name]',
       project_type: formData.project_type || formData.financing_option || formData.Financing_option || '[Project Type]',
       form_id: formData.form_id || '[Form ID]',
       calendar_link: process.env.CALENDAR_LINK || '[Calendar Link]',
+      
+      // === TEMPLATE COMPATIBILITY MAPPINGS ===
+      // Base variables that templates actually use (mapped from _poc/_sign forms)
+      first_name: formData.first_name_poc || formData.first_name_sign || formData.first_name || '[First Name]',
+      last_name: formData.last_name_poc || formData.last_name_sign || formData.last_name || '[Last Name]',
+      title: formData.title_poc || formData.title_sign || '[Title]',
+      email: formData.email_poc || formData.email_sign || formData.contact_email || '[Email]',
+      mobile_phone: formData.mobile_phone_poc || formData.mobile_phone_sign || formData.mobile_phone || formData.phone_number || '[Mobile Phone]',
+      linkedin: formData.linkedin_poc || formData.linkedin_sign || formData.linkedin || '[LinkedIn]',
+      
+      // Business mappings
+      ein: formData.ein_number || '[EIN]',
+      website: formData.website_issuer || '[Website]',
+      
+      // Project mappings  
+      tech: formData.tech_offering || '[Technology]',
+      deadline: formData.deadline_offering || '[Deadline]',
+      
+      // Financial mappings
+      target_offering_amount: formData.target_issuer || '[Target Amount]',
+      maximum_offering_amount: formData.maximum_issuer || '[Maximum Amount]',
+      term: formData.term_months || '[Term]',
+      rate: formData.interest_rate || '[Interest Rate]',
+      timeline: formData.timeline || '[Timeline]',
+      
+      // Template-specific variable mappings
+      Financing_option: formData.financing_option || formData.Financing_option || '[Financing Option]',
+      Entity_type: formData.entity_type || formData.Entity_type || '[Entity Type]',  
+      Name_plate_capacity: formData.name_plate_capacity || formData.Name_plate_capacity || '[Nameplate Capacity]',
       
       // === ADDITIONAL FINANCIAL FIELDS ===
       annual_revenue: formData.annual_revenue || '[Annual Revenue]',
@@ -612,7 +809,7 @@ Best regards,
 Climatize.earth Team`;
 
       // For now, just log the email content
-      console.log('Email would be sent to:', formData.email || formData.contact_email);
+      console.log('Email would be sent to:', formData.email_poc || formData.contact_email);
       console.log('Email content:', emailContent);
       
     } catch (error) {
@@ -628,7 +825,7 @@ Climatize.earth Team`;
 
 Project: ${formData.project_name || 'N/A'}
 Contact: ${formData.first_name || ''} ${formData.last_name || ''}
-Email: ${formData.email || formData.contact_email || 'N/A'}
+      Email: ${formData.email_poc || formData.contact_email || 'N/A'}
 Project Type: ${formData.Financing_option || formData.project_type || 'N/A'}
 
 Folder Link: ${folders.main.webViewLink}
@@ -770,83 +967,81 @@ All documents have been created in the Internal folder.`;
     // Realistic test data fallbacks for when form submission is empty/null
     const testDataMap = {
       // Contact Information - POC
-      'first_name_poc': 'John',
-      'last_name_poc': 'Smith', 
-      'title_poc': 'Chief Financial Officer',
-      'email_poc': 'john.smith@testcompany.com',
-      'mobile_phone_poc': '+1-555-0123',
-      'linkedin_poc': 'https://linkedin.com/in/johnsmith',
+      'first_name_poc': '[First Name POC]',
+      'last_name_poc': '[Last Name POC]', 
+      'title_poc': '[Title POC]',
+      'email_poc': '[Email POC]',
+      'mobile_phone_poc': '[Mobile Phone POC]',
+      'linkedin_poc': '[LinkedIn POC]',
       
       // Signer Information
-      'first_name': 'Jane',
-      'last_name': 'Doe',
-      'title': 'Chief Executive Officer',
-      'email': 'jane.doe@testcompany.com',
-      'mobile_phone': '+1-555-0124',
-      'linkedin': 'https://linkedin.com/in/janedoe',
+      'first_name_sign': '[First Name Sign]',
+      'last_name_sign': '[Last Name Sign]',
+      'title_sign': '[Title Sign]',
+      'email_sign': '[Email Sign]',
+      'linkedin_sign': '[LinkedIn Sign]',
       
       // Business Information
-      'business_legal_name': 'GreenTech Solutions LLC',
-      'dba': 'GreenTech Solar',
-      'ein': '12-3456789',
-      'entity_type': 'LLC',
-      'Entity_type': 'LLC',
-      'state_incorporation': 'Delaware',
-      'date_incorporation': '2020-03-15',
-      'fiscal_year_end': '12/31',
-      'website': 'https://greentech-solutions.com',
+      'business_legal_name': '[Business Legal Name]',
+      'doing_business_as': '[Doing Business As]',
+      'ein_number': '[EIN Number]',
+      'entity_type': '[Entity Type]',
+      'state_incorporation': '[State Incorporation]',
+      'date_incorporation': '[Date Incorporation]',
+      'fiscal_year_end': '[Fiscal Year End]',
+      'website_issuer': '[Website Issuer]',
       
       // Business Address
-      'address_issuer': '123 Business Park Drive',
-      'city_issuer': 'Austin',
-      'state_issuer': 'TX',
-      'zip_issuer': '78701',
-      'phone_issuer': '+1-555-0100',
-      'business_description': 'Renewable energy technology company specializing in solar installations and energy storage solutions.',
+      'address_issuer': '[Address Issuer]',
+      'city_issuer': '[City Issuer]',
+      'state_issuer': '[State Issuer]',
+      'zip_issuer': '[ZIP Issuer]',
+      'phone_issuer': '[Phone Issuer]',
+      'business_description': '[Business Description]',
       
       // Project Information
-      'tech': 'Solar',
-      'other_tech': 'Commercial rooftop solar with battery storage system',
-      'project_name': 'Austin Commerce Center Solar Installation',
+      'tech_offering': '[Tech Offering]',
+      'other_tech': '[Other Tech]',
+      'project_name': '[Project Name]',
       
       // Project Address
-      'address_project': '456 Commerce Center Boulevard',
-      'city_project': 'Austin',
-      'state_project': 'TX',
-      'zip_project': '78702',
+      'address_project': '[Address Project]',
+      'city_project': '[City Project]',
+      'state_project': '[State Project]',
+      'zip_project': '[ZIP Project]',
       
       // Project Details & Financial
-      'name_plate_capacity': '2.5 MW DC',
-      'target_issuer': '$3,750,000',
-      'maximum_offering_amount': '$4,500,000',
-      'deadline': '2025-09-30',
-      'project_description': 'Commercial rooftop solar installation with 2.5 MW capacity and 1.2 MWh battery storage system for the Austin Commerce Center.',
-      'use_of_funds': 'Equipment procurement (65%), Installation and construction (20%), Development and permitting (10%), Contingency reserve (5%)',
+      'name_plate_capacity': '[Nameplate Capacity]',
+      'target_issuer': '[Target Amount]',
+      'maximum_issuer': '[Maximum Amount]',
+      'deadline_offering': '[Funding Deadline]',
+      'project_description': '[Project Description]',
+      'use_of_funds': '[Use of Funds]',
       
       // Financing Information
-      'financing_option': 'Construction',
-      'financing_other': '',
-      'financing_requirements': 'Construction-to-permanent financing with flexible draw schedule and competitive interest rates',
-      'interest_rate': '7.25%',
-      'term_months': '18',
+      'financing_option': '[Financing Option]',
+      'financing_other': '[Other Financing Details]',
+      'financing_requirements': '[Financing Requirements]',
+      'interest_rate': '[Interest Rate]',
+      'term_months': '[Term Months]',
       
-      // Legacy fields
-      'contact_email': 'jane.doe@testcompany.com',
-      'contact_name': 'Jane Doe',
-      'project_type': 'Construction',
+      // Legacy fields and dates (keep some dynamic for realism)
+      'contact_email': '[Contact Email]',
+      'contact_name': '[Contact Name]',
+      'project_type': '[Project Type]',
       'form_id': 'TEST-DEMO-' + Date.now(),
       'calendar_link': process.env.CALENDAR_LINK || 'https://calendly.com/climatize/consultation',
       
-      // Date fields
-      'phase_one_submission': new Date().toLocaleDateString(),
+      // Date fields (keep dynamic)
+      'phase_one_submission': new Date().toISOString(),
       'current_date': new Date().toLocaleDateString(),
       'current_time': new Date().toLocaleTimeString(),
       'submission_time': new Date().toISOString(),
       
       // Additional common fields
-      'authorized_signatory': 'Jane Doe',
-      'timeline': '18 months construction period',
-      'total_project_cost': '$4,200,000'
+      'authorized_signatory': '[Authorized Signatory]',
+      'timeline': '[Timeline]',
+      'total_project_cost': '[Total Project Cost]'
     };
     
     // Return test data if available, otherwise create a reasonable placeholder
@@ -854,26 +1049,7 @@ All documents have been created in the Internal folder.`;
       return testDataMap[key];
     }
     
-    // Generate intelligent fallbacks based on field name patterns
-    if (key.includes('email')) return 'demo@testcompany.com';
-    if (key.includes('phone') || key.includes('mobile')) return '+1-555-0199';
-    if (key.includes('address')) return '123 Test Address Street';
-    if (key.includes('city')) return 'Test City';
-    if (key.includes('state')) return 'TX';
-    if (key.includes('zip')) return '78701';
-    if (key.includes('name')) return 'Test Name';
-    if (key.includes('title')) return 'Manager';
-    if (key.includes('rate') || key.includes('interest')) return '7.5%';
-    if (key.includes('amount') || key.includes('target') || key.includes('maximum')) return '$2,500,000';
-    if (key.includes('capacity')) return '1.5 MW DC';
-    if (key.includes('date')) return new Date().toLocaleDateString();
-    if (key.includes('time')) return new Date().toLocaleTimeString();
-    if (key.includes('term') && key.includes('month')) return '24';
-    if (key.includes('website')) return 'https://testcompany.com';
-    if (key.includes('linkedin')) return 'https://linkedin.com/in/test';
-    if (key.includes('description')) return 'Test project description for demonstration purposes.';
-    
-    // Default fallback
+    // Default fallback - create brackets with full field name to avoid overlap issues
     return `[${key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}]`;
   }
 

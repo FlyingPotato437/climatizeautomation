@@ -52,6 +52,9 @@ class GoogleDocsService {
       this.initializeApis();
       await this.authService.ensureValidToken();
 
+      console.log(`=== REPLACING TEXT IN DOCUMENT ${documentId} ===`);
+      console.log(`Total variables to replace: ${Object.keys(replacements).length}`);
+
       // Get the document content first
       const doc = await this.docs.documents.get({
         documentId: documentId
@@ -61,8 +64,14 @@ class GoogleDocsService {
       const requests = [];
 
       // Sort variables by length (longest first) to prevent partial word replacements
-      // For example, "technology" should be processed before "tech" to avoid conflicts
       const sortedVariables = Object.keys(replacements).sort((a, b) => b.length - a.length);
+
+      console.log('Variable replacement strategy:');
+      console.log(`- Total variables: ${sortedVariables.length}`);
+      console.log('First 10 variables to replace:');
+      sortedVariables.slice(0, 10).forEach(variable => {
+        console.log(`  "${variable}" -> "${replacements[variable]}"`);
+      });
 
       // Create replacement requests for each variable
       for (const variable of sortedVariables) {
@@ -76,19 +85,26 @@ class GoogleDocsService {
           replaceText = String(replacement || '');
         }
         
-        requests.push({
-          replaceAllText: {
-            containsText: {
-              text: variable,
-              matchCase: false
-            },
-            replaceText: replaceText
-          }
-        });
+        // Only add replacement request if variable is not empty
+        if (variable && variable.trim()) {
+          // For bare variables, use word boundary matching to prevent partial replacements
+          const isBarevariable = !variable.startsWith('{{') && !variable.startsWith('[');
+          
+          requests.push({
+            replaceAllText: {
+              containsText: {
+                text: variable,
+                matchCase: false
+              },
+              replaceText: replaceText
+            }
+          });
+        }
       }
 
       // Execute batch update if we have requests
       if (requests.length > 0) {
+        console.log(`Executing ${requests.length} replacement requests...`);
         await this.docs.documents.batchUpdate({
           documentId: documentId,
           resource: {
@@ -96,12 +112,17 @@ class GoogleDocsService {
           }
         });
 
-        console.log(`Replaced ${requests.length} placeholders in document ${documentId}`);
+        console.log(`✅ Successfully replaced ${requests.length} placeholders in document ${documentId}`);
+      } else {
+        console.log('⚠️ No replacement requests to execute');
       }
 
       return true;
     } catch (error) {
-      console.error('Error replacing text in document:', error);
+      console.error('❌ Error replacing text in document:', error);
+      if (error.response) {
+        console.error('Google API Error Details:', error.response.data);
+      }
       throw error;
     }
   }

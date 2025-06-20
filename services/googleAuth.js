@@ -84,7 +84,10 @@ class GoogleAuthService {
       }
       return true;
     } catch (error) {
-      console.error('Error ensuring valid token:', error);
+      console.error('Error ensuring valid token:', error.message);
+      if (error.message.includes('invalid_grant')) {
+        throw new Error('Google OAuth refresh token is invalid or expired. Please re-authenticate via /auth/google');
+      }
       return false;
     }
   }

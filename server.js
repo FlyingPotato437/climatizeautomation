@@ -384,21 +384,42 @@ function verifyFilloutSignature(payload, signature) {
 }
 
 function extractFormData(webhookBody) {
-  // Handle Fillout webhook format: submission.questions
+  console.log('=== EXTRACTING FORM DATA ===');
+  console.log('Webhook body keys:', Object.keys(webhookBody));
+  console.log('Has questions?', !!webhookBody.questions);
+  console.log('Questions is array?', Array.isArray(webhookBody.questions));
+  console.log('Questions length:', webhookBody.questions ? webhookBody.questions.length : 'N/A');
+  
+  // Handle Fillout webhook format: questions array (direct or nested)
+  if (webhookBody.questions && Array.isArray(webhookBody.questions)) {
+    console.log('✅ Using direct questions array');
+    return extractFromFilloutQuestions(webhookBody.questions, webhookBody);
+  }
+  
   if (webhookBody.submission && webhookBody.submission.questions) {
+    console.log('✅ Using nested submission.questions');
     return extractFromFilloutQuestions(webhookBody.submission.questions, webhookBody);
   }
   
   // Handle other Fillout webhook formats
   if (webhookBody.data) {
+    console.log('✅ Using data format');
     return extractFromFilloutData(webhookBody.data);
   }
   
   if (webhookBody.responses) {
+    console.log('✅ Using responses format');
     return extractFromFilloutResponses(webhookBody.responses);
   }
 
-  // Direct field access
+  // Direct field access as fallback
+  console.log('⚠️ Using direct field access fallback');
+  console.log('Fallback data:', {
+    business_legal_name: webhookBody.business_legal_name,
+    contact_email: webhookBody.contact_email,
+    contact_name: webhookBody.contact_name,
+    project_type: webhookBody.project_type
+  });
   return {
     business_legal_name: webhookBody.business_legal_name,
     contact_email: webhookBody.contact_email,
@@ -460,171 +481,195 @@ function extractFromFilloutQuestions(questions, webhookBody) {
     if (question.name && question.name.trim()) {
       const originalName = question.name;
       
-      // Normalize question name for mapping
+      // Convert names like "First Name (1)" -> "first_name_1"
       let normalizedName = question.name.toLowerCase()
-        .replace(/\s*\([^)]*\)/g, '') // Remove parentheses content like "(1)"
-        .replace(/[^\w\s]/g, '') // Remove special characters except spaces and underscores
+        .replace(/\s*\((\d+)\)/g, '_$1') // Turn parenthetical numbers into suffix _1, _2, etc.
+        .replace(/[^\w\s]/g, '') // Remove remaining special characters
         .replace(/\s+/g, '_') // Replace spaces with underscores
         .trim();
       
-      // Store raw value first
-      formData[normalizedName] = question.value;
+      // Avoid overwriting a previously captured non-empty value with empty/"Unanswered" duplicates
+      const incomingVal = question.value;
+      const isEmpty = incomingVal === undefined || incomingVal === null || String(incomingVal).trim() === '' || String(incomingVal).toLowerCase() === 'unanswered';
+
+      if (!isEmpty) {
+        formData[normalizedName] = incomingVal;
+      } else if (!(normalizedName in formData)) {
+        // Keep placeholder only if not already filled
+        formData[normalizedName] = '';
+      }
       
       console.log(`Q${index + 1}: "${originalName}" -> ${normalizedName} = "${question.value}"`);
     }
   });
   
-  // COMPREHENSIVE FIELD MAPPING based on actual Fillout form structure
-  const comprehensiveFieldMappings = {
-    // Contact Information (Primary Contact)
-    'first_name': 'first_name',
-    'last_name': 'last_name', 
-    'title': 'title',
-    'email': 'email',
-    'phone_number': 'mobile_phone',
-    'linkedin': 'linkedin',
-    
-    // Alternative Contact Information (if different person has signing authority)
-    'first_name_1': 'first_name_signer', // If they don't have authority, this is the signer
-    'last_name_1': 'last_name_signer',
-    'title_1': 'title_signer', 
-    'email_1': 'email_signer',
-    
-    // Business Information
-    'business_legal_name': 'business_legal_name',
-    'dba_doing_buisness_as': 'dba', // Note: Fillout form has typo "Buisness"
-    'dba_doing_business_as': 'dba',
-    'dba': 'dba',
-    'ein': 'ein',
-    'type_of_entity': 'entity_type',
-    'entity_type': 'entity_type',
-    'state_of_incorporation': 'state_incorporation',
-    'incorporation_date': 'date_incorporation',
-    'fiscal_year_end': 'fiscal_year_end',
-    'website': 'website',
-    
-    // Business Address
-    'business_address': 'address_issuer',
-    'address': 'address_issuer',
-    'city': 'city_issuer',
-    'state__province': 'state_issuer',
-    'state_province': 'state_issuer',
-    'zip__postal_code': 'zip_issuer',
-    'zip_postal_code': 'zip_issuer',
-    'business_phone': 'phone_issuer',
-    'business_description': 'business_description',
-    
-    // Technology/Goal
-    'what_technology_are_you_raising_capital_for': 'tech',
-    'technology': 'tech',
-    'please_specify_your_technology': 'other_tech',
-    'specify_technology': 'other_tech',
-    
-    // Project Information
-    'project_or_portfolio_name': 'project_name',
-    'project_name': 'project_name',
-    'portfolio_name': 'project_name',
-    
-    // Project Address (separate from business address)
-    'address_1': 'address_project', // Second address field in form
-    'project_address': 'address_project',
-    'city_1': 'city_project',
-    'project_city': 'city_project',
-    'state__province_1': 'state_project',
-    'state_province_1': 'state_project',
-    'project_state': 'state_project',
-    'zip__postal_code_1': 'zip_project',
-    'zip_postal_code_1': 'zip_project',
-    'project_zip': 'zip_project',
-    
-    // Project Size & Financial
-    'project_size': 'name_plate_capacity',
-    'nameplate_capacity': 'name_plate_capacity',
-    'minimum_capital_needed': 'target_issuer',
-    'target_amount': 'target_issuer',
-    'maximum_capital_needed': 'maximum_offering_amount',
-    'maximum_amount': 'maximum_offering_amount',
-    'by_when_do_you_need_the_capital': 'deadline',
-    'deadline': 'deadline',
-    'project_description': 'project_description',
-    'describe_the_use_of_funds': 'use_of_funds',
-    'use_of_funds': 'use_of_funds',
-    
-    // Financing Options
-    'which_of_the_options_above_is_a_better_fit_for_your_project': 'financing_option',
-    'financing_option': 'financing_option',
-    'project_fit': 'financing_option',
-    'if_other_please_specify': 'financing_other',
-    'other_specify': 'financing_other',
-    'financing_other': 'financing_other',
-    'do_you_have_any_preferred_terms_or_requirements': 'financing_requirements',
-    'preferred_terms': 'financing_requirements',
-    'financing_requirements': 'financing_requirements',
-    'desired_rate': 'interest_rate',
-    'interest_rate': 'interest_rate',
-    'rate': 'interest_rate',
-    'desired_term': 'term_months',
-    'term_months': 'term_months',
-    'term': 'term_months',
-    
-    // Legacy mappings for compatibility
-    'contact_email': 'email',
-    'email_address': 'email',
-    'mobile_phone': 'mobile_phone',
-    'phone': 'mobile_phone'
-  };
+  console.log('=== RAW FORM DATA AFTER QUESTION PROCESSING ===');
+  console.log('business_legal_name:', formData.business_legal_name);
+  console.log('email:', formData.email);
+  console.log('first_name:', formData.first_name);
+  console.log('Keys:', Object.keys(formData).slice(0, 10));
   
-  console.log('=== APPLYING FIELD MAPPINGS ===');
+  console.log('=== CREATING COMPREHENSIVE FIELD MAPPINGS ===');
   
-  // Apply comprehensive mappings
-  Object.keys(comprehensiveFieldMappings).forEach(originalField => {
-    const targetField = comprehensiveFieldMappings[originalField];
-    
-    if (originalField in formData) {
-      const value = formData[originalField];
-      
-      // Don't overwrite if target already has a value (preserve more specific mappings)
-      if (!(targetField in formData) || formData[targetField] === null || formData[targetField] === undefined) {
-        formData[targetField] = value;
-        console.log(`Mapped: ${originalField} -> ${targetField} = "${value}"`);
-      }
-    }
-  });
-  
-  // Ensure mobile_phone is available from phone_number if needed
-  if (!formData.mobile_phone && formData.phone_number) {
-    formData.mobile_phone = formData.phone_number;
-  }
-  
-  // Handle dual contact logic (primary contact vs signing authority)
+  // Handle dual contact logic FIRST (primary contact vs signing authority)
   const hasSigningAuthority = formData.check_this_box_if_you_have_the_authority_to_sign_legal_documents_on_behalf_of_your_company;
   
   if (hasSigningAuthority) {
-    // Primary contact is the signer
-    console.log('Primary contact has signing authority');
-    // POC fields same as signer fields
+    // Primary contact is the signer - they filled out the form AND can sign
+    console.log('Primary contact has signing authority - same person for POC and Signer');
+    
+    // Set POC fields (Point of Contact) - the person who filled out the form
     formData.first_name_poc = formData.first_name;
     formData.last_name_poc = formData.last_name;
     formData.title_poc = formData.title;
     formData.email_poc = formData.email;
-    formData.mobile_phone_poc = formData.mobile_phone || formData.phone_number;
+    formData.mobile_phone_poc = formData.phone_number;
     formData.linkedin_poc = formData.linkedin;
+    
+    // Set Signer fields (same person)
+    formData.first_name_sign = formData.first_name;
+    formData.last_name_sign = formData.last_name;
+    formData.title_sign = formData.title;
+    formData.email_sign = formData.email;
+    formData.linkedin_sign = formData.linkedin;
+    
   } else {
-    // Separate signer provided
-    console.log('Separate signing authority provided');
-    if (formData.first_name_signer) {
-      formData.first_name = formData.first_name_signer;
-      formData.last_name = formData.last_name_signer;
-      formData.title = formData.title_signer;
-      formData.email = formData.email_signer;
+    // Separate signer provided - form filler doesn't have authority
+    console.log('Separate signing authority provided - different people for POC and Signer');
+    
+    // Set POC fields (Point of Contact) - the person who filled out the form (first set of fields)
+    formData.first_name_poc = formData.first_name;
+    formData.last_name_poc = formData.last_name;
+    formData.title_poc = formData.title;
+    formData.email_poc = formData.email;
+    formData.mobile_phone_poc = formData.phone_number;
+    formData.linkedin_poc = formData.linkedin;
+    
+    // Set Signer fields from second set of form fields (first_name_1, last_name_1, etc.)
+    formData.first_name_sign = formData.first_name_1 || formData.first_name;
+    formData.last_name_sign = formData.last_name_1 || formData.last_name;
+    formData.title_sign = formData.title_1 || formData.title;
+    formData.email_sign = formData.email_1 || formData.email;
+    formData.linkedin_sign = formData.linkedin_1 || formData.linkedin;
+  }
+  
+  // Apply field mappings for other business data (NOT contact info) - USING USER'S EXACT FIELD NAMES
+  const businessFieldMappings = {
+    // Business Information - Use exact field names user provided
+    'ein': 'ein_number',  // Map ein -> ein_number
+    'legal_business_name': 'business_legal_name',
+    'legal_name': 'business_legal_name',
+    'company_name': 'business_legal_name',
+    'business_name': 'business_legal_name',
+    'company': 'business_legal_name',
+    'dba_doing_buisness_as': 'doing_business_as', // Note: Fillout form has typo "Buisness"
+    'dba_doing_business_as': 'doing_business_as',
+    'dba': 'doing_business_as',
+    'type_of_entity': 'entity_type',
+    'state_of_incorporation': 'state_incorporation',
+    'incorporation_date': 'date_incorporation',
+    'fiscal_year_end': 'fiscal_year_end',
+    'website': 'website_issuer', // Map website -> website_issuer
+    // Contact Info common fallbacks
+    'email': 'contact_email',
+    'email_address': 'contact_email',
+    'phone': 'mobile_phone_poc',
+    'phone_number': 'mobile_phone_poc',
+    
+    // Business Address fields
+    'business_phone': 'phone_issuer',
+    'business_description': 'business_description',
+    
+    // Technology/Goal
+    'what_technology_are_you_raising_capital_for': 'tech_offering',
+    'technology': 'tech_offering',
+    'please_specify_your_technology': 'other_tech',
+    
+    // Project Information
+    'project_or_portfolio_name': 'project_name',
+    'portfolio_name': 'project_name',
+    
+    // Project Size & Financial - Use exact field names from user
+    'project_size': 'name_plate_capacity',
+    'nameplate_capacity': 'name_plate_capacity',
+    'minimum_capital_needed': 'target_issuer',
+    'maximum_capital_needed': 'maximum_issuer', // User said maximum_issuer not maximum_offering_amount
+    'by_when_do_you_need_the_capital': 'deadline_offering', // User said deadline_offering
+    'describe_the_use_of_funds': 'use_of_funds',
+    'project_description': 'project_description',
+    
+    // Financing Options
+    'which_of_the_options_above_is_a_better_fit_for_your_project': 'financing_option',
+    'project_fit': 'financing_option',
+    'if_other_please_specify': 'financing_other',
+    'do_you_have_any_preferred_terms_or_requirements': 'financing_requirements',
+    'desired_rate': 'interest_rate',
+    'desired_term': 'term_months'
+  };
+  
+  console.log('=== APPLYING BUSINESS FIELD MAPPINGS ===');
+  
+  // Apply business field mappings (skip contact fields to avoid overwriting)
+  Object.keys(businessFieldMappings).forEach(originalField => {
+    const targetField = businessFieldMappings[originalField];
+    
+    if (originalField in formData && formData[originalField] !== null && formData[originalField] !== undefined) {
+      formData[targetField] = formData[originalField];
+      console.log(`Mapped: ${originalField} -> ${targetField} = "${formData[originalField]}"`);
+      if (targetField !== originalField) {
+        delete formData[originalField];            // ⬅️ NEW delete legacy key to avoid duplicate placeholders
+      }
     }
-    // Primary contact becomes POC (the person filling out the form)
-    formData.first_name_poc = formData.first_name_poc || formData.first_name;
-    formData.last_name_poc = formData.last_name_poc || formData.last_name;
-    formData.title_poc = formData.title_poc || formData.title;
-    formData.email_poc = formData.email_poc || formData.email;
-    formData.mobile_phone_poc = formData.mobile_phone_poc || formData.mobile_phone || formData.phone_number;
-    formData.linkedin_poc = formData.linkedin_poc || formData.linkedin;
+  });
+  
+  // --- Fallbacks to guarantee required fields ---
+  if (!formData.business_legal_name) {
+    // Try common alternative fields we may have normalized but not mapped earlier
+    formData.business_legal_name = formData.doing_business_as || formData.company_name || formData.legal_name || formData.business_name;
+    if (formData.business_legal_name) {
+      console.log(`✅ business_legal_name fallback assigned: ${formData.business_legal_name}`);
+    }
+  }
+
+  if (!formData.contact_email) {
+    formData.contact_email = formData.email || formData.email_poc;
+    if (formData.contact_email) {
+      console.log(`✅ contact_email fallback assigned: ${formData.contact_email}`);
+    }
+  }
+  
+  // Handle business address as object or individual fields
+  if (formData.business_address && typeof formData.business_address === 'object') {
+    const addrObj = formData.business_address;
+    formData.address_issuer = addrObj.address || addrObj.line1 || addrObj.street || JSON.stringify(addrObj);
+    formData.city_issuer = addrObj.city || formData.city_issuer;
+    formData.state_issuer = addrObj.state || formData.state_issuer; 
+    formData.zip_issuer = addrObj.zipCode || addrObj.zip || formData.zip_issuer;
+    console.log('Mapped business_address object to issuer address fields (string components)');
+    delete formData.business_address; // remove raw object
+  }
+  
+  // Handle individual address fields
+  if (formData.address && !formData.address_issuer) {
+    formData.address_issuer = formData.address;
+    console.log('Mapped address -> address_issuer');
+  }
+  if (formData.city && !formData.city_issuer) {
+    formData.city_issuer = formData.city;
+    console.log('Mapped city -> city_issuer');
+  }
+  if (formData.state && !formData.state_issuer) {
+    formData.state_issuer = formData.state;
+    console.log('Mapped state -> state_issuer');
+  }
+  if (formData.zip && !formData.zip_issuer) {
+    formData.zip_issuer = formData.zip;
+    console.log('Mapped zip -> zip_issuer');
+  }
+  
+  // Set mobile_phone for legacy compatibility
+  if (!formData.mobile_phone && formData.phone_number) {
+    formData.mobile_phone = formData.phone_number;
   }
   
   // Normalize financing option values
@@ -654,8 +699,27 @@ function extractFromFilloutQuestions(questions, webhookBody) {
   if (formData.target_issuer && !String(formData.target_issuer).includes('$')) {
     formData.target_issuer = `$${formData.target_issuer}`;
   }
-  if (formData.maximum_offering_amount && !String(formData.maximum_offering_amount).includes('$')) {
+
+  // Format maximum_issuer amount as currency if missing dollar sign
+  if (formData.maximum_issuer && !String(formData.maximum_issuer).includes('$')) {
+    formData.maximum_issuer = `$${formData.maximum_issuer}`;
+  } else if (formData.maximum_offering_amount && !String(formData.maximum_offering_amount).includes('$')) {
+    // Legacy compatibility
     formData.maximum_offering_amount = `$${formData.maximum_offering_amount}`;
+  }
+
+  // If project address details are still missing, but we have a generic address captured, reuse it
+  if (!formData.address_project && formData.address && formData.address !== formData.address_issuer) {
+    formData.address_project = formData.address;
+  }
+  if (!formData.city_project && formData.city && formData.city !== formData.city_issuer) {
+    formData.city_project = formData.city;
+  }
+  if (!formData.state_project && formData.state && formData.state !== formData.state_issuer) {
+    formData.state_project = formData.state;
+  }
+  if (!formData.zip_project && formData.zip && formData.zip !== formData.zip_issuer) {
+    formData.zip_project = formData.zip;
   }
   
   // Add percentage sign to interest rate if missing
