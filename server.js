@@ -57,6 +57,53 @@ app.get('/health', async (req, res) => {
   }
 });
 
+// Legacy webhook endpoint for backwards compatibility
+app.post('/webhook/fillout', async (req, res) => {
+  try {
+    console.log('=== LEGACY FILLOUT WEBHOOK RECEIVED ===');
+    console.log('Redirecting to Phase 1 processing...');
+    
+    // Process as Phase 1 lead
+    const formData = extractFormData(req.body);
+    
+    if (!formData.business_legal_name && !formData.contact_email) {
+      console.error('Missing required form data');
+      console.log('Available fields:', Object.keys(formData));
+      return res.status(400).json({ 
+        error: 'Missing required fields: business_legal_name or contact_email',
+        availableFields: Object.keys(formData)
+      });
+    }
+
+    console.log('Processing form submission for:', formData.business_legal_name);
+
+    // Process the lead asynchronously
+    const result = await phase1AutomationService.processNewLead(formData);
+
+    res.json({
+      success: true,
+      message: 'Lead processed successfully',
+      client: result.client,
+      documents: {
+        mnda: result.documents.mnda.id,
+        poa: result.documents.poa.id,
+        projectOverview: result.documents.projectOverview.id,
+        formId: result.documents.formId.id,
+        termSheet: result.documents.termSheet.id
+      },
+      folderId: result.folders.main.id
+    });
+
+  } catch (error) {
+    console.error('Legacy webhook processing error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Internal server error',
+      message: error.message
+    });
+  }
+});
+
 // Phase 1 Fillout webhook endpoint  
 app.post('/webhook/phase1/fillout', async (req, res) => {
   try {
