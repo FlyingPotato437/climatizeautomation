@@ -25,6 +25,9 @@ class GoogleDriveService {
 
       if (parentFolderId) {
         folderMetadata.parents = [parentFolderId];
+        console.log(`📁 Creating folder "${name}" inside parent folder ID: ${parentFolderId}`);
+      } else {
+        console.log(`📁 Creating folder "${name}" in root Drive`);
       }
 
       const folder = await this.drive.files.create({
@@ -32,10 +35,13 @@ class GoogleDriveService {
         fields: 'id, name, webViewLink'
       });
 
-      console.log(`Created folder: ${name} (ID: ${folder.data.id})`);
+      console.log(`✅ Created folder: ${name}`);
+      console.log(`   📍 Folder ID: ${folder.data.id}`);
+      console.log(`   🔗 Direct link: ${folder.data.webViewLink}`);
+      
       return folder.data;
     } catch (error) {
-      console.error('Error creating folder:', error);
+      console.error('❌ Error creating folder:', error);
       throw error;
     }
   }
@@ -45,20 +51,31 @@ class GoogleDriveService {
       this.initializeApi();
       const leadsPhase1FolderId = process.env.LEADS_PHASE1_FOLDER_ID;
       
+      console.log(`🏗️  Creating folder structure for: ${businessName}`);
+      console.log(`📂 Parent folder ID: ${leadsPhase1FolderId || 'NOT SET - will create in root!'}`);
+      
       // Create main client folder
       const mainFolder = await this.createFolder(businessName, leadsPhase1FolderId);
       
       // Create Internal and External subfolders
+      console.log('📁 Creating subfolders...');
       const internalFolder = await this.createFolder('Internal', mainFolder.id);
       const externalFolder = await this.createFolder('External', mainFolder.id);
 
-      return {
+      const result = {
         main: mainFolder,
         internal: internalFolder,
         external: externalFolder
       };
+
+      console.log('🎉 Folder structure created successfully!');
+      console.log(`   📁 Main: ${mainFolder.webViewLink}`);
+      console.log(`   📁 Internal: ${internalFolder.webViewLink}`);
+      console.log(`   📁 External: ${externalFolder.webViewLink}`);
+
+      return result;
     } catch (error) {
-      console.error('Error creating client folder structure:', error);
+      console.error('❌ Error creating client folder structure:', error);
       throw error;
     }
   }

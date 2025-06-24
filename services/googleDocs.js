@@ -31,7 +31,9 @@ class GoogleDocsService {
       });
 
       const newDocId = copiedDoc.data.id;
-      console.log(`Created document: ${newDocumentName} (ID: ${newDocId})`);
+      console.log(`📄 Created document: ${newDocumentName}`);
+      console.log(`   📍 Document ID: ${newDocId}`);
+      console.log(`   🔗 Direct link: ${copiedDoc.data.webViewLink}`);
 
       // Step 2: Replace placeholders in the document
       await this.replaceTextInDocument(newDocId, replacements);
@@ -47,64 +49,40 @@ class GoogleDocsService {
     }
   }
 
-  async replaceTextInDocument(documentId, replacements) {
+  async replaceTextInDocument(documentId, enrichedData) {
     try {
       this.initializeApis();
       await this.authService.ensureValidToken();
 
       console.log(`=== REPLACING TEXT IN DOCUMENT ${documentId} ===`);
-      console.log(`Total variables to replace: ${Object.keys(replacements).length}`);
+      console.log(`Variables available: ${Object.keys(enrichedData).length}`);
 
-      // Get the document content first
-      const doc = await this.docs.documents.get({
-        documentId: documentId
-      });
-
-      // Prepare batch update requests
+      // Prepare batch update requests for RAW variable names (no delimiters)
       const requests = [];
 
-      // Sort variables by length (longest first) to prevent partial word replacements
-      const sortedVariables = Object.keys(replacements).sort((a, b) => b.length - a.length);
-
-      console.log('Variable replacement strategy:');
-      console.log(`- Total variables: ${sortedVariables.length}`);
-      console.log('First 10 variables to replace:');
-      sortedVariables.slice(0, 10).forEach(variable => {
-        console.log(`  "${variable}" -> "${replacements[variable]}"`);
-      });
-
-      // Create replacement requests for each variable
-      for (const variable of sortedVariables) {
-        const replacement = replacements[variable];
-        
-        // Ensure replacement is a string, not an object
-        let replaceText = '';
-        if (replacement && typeof replacement === 'object') {
-          replaceText = JSON.stringify(replacement);
-        } else {
-          replaceText = String(replacement || '');
-        }
-        
-        // Only add replacement request if variable is not empty
-        if (variable && variable.trim()) {
-          // For bare variables, use word boundary matching to prevent partial replacements
-          const isBarevariable = !variable.startsWith('{{') && !variable.startsWith('[');
+      // Create simple replacements for raw variable names
+      for (const [variable, value] of Object.entries(enrichedData)) {
+        if (variable && value !== undefined && value !== null) {
+          const replaceText = String(value);
           
+          // Replace the raw variable name directly
           requests.push({
             replaceAllText: {
               containsText: {
-                text: variable,
-                matchCase: false
+                text: variable,  // Raw variable name like "first_name_poc"
+                matchCase: true  // Case-sensitive for clean matching
               },
               replaceText: replaceText
             }
           });
+          
+          console.log(`📝 Will replace "${variable}" with "${replaceText}"`);
         }
       }
 
       // Execute batch update if we have requests
       if (requests.length > 0) {
-        console.log(`Executing ${requests.length} replacement requests...`);
+        console.log(`Executing ${requests.length} raw variable replacement requests...`);
         await this.docs.documents.batchUpdate({
           documentId: documentId,
           resource: {
@@ -112,7 +90,7 @@ class GoogleDocsService {
           }
         });
 
-        console.log(`✅ Successfully replaced ${requests.length} placeholders in document ${documentId}`);
+        console.log(`✅ Successfully replaced ${requests.length} variables in document ${documentId}`);
       } else {
         console.log('⚠️ No replacement requests to execute');
       }

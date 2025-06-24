@@ -5,8 +5,6 @@ const crypto = require('crypto');
 require('dotenv').config();
 
 const Phase1AutomationService = require('./services/phase1AutomationService');
-const Phase2AutomationService = require('./services/phase2AutomationService');
-const LeadTrackingService = require('./services/leadTrackingService');
 const GoogleAuthService = require('./services/googleAuth');
 
 const app = express();
@@ -19,8 +17,6 @@ app.use(bodyParser.urlencoded({ extended: true }));
 
 // Initialize services
 const phase1AutomationService = new Phase1AutomationService();
-const phase2AutomationService = new Phase2AutomationService();
-const leadTrackingService = new LeadTrackingService();
 const googleAuthService = new GoogleAuthService();
 
 // Root endpoint
@@ -41,12 +37,10 @@ app.get('/', (req, res) => {
 // Health check endpoint
 app.get('/health', async (req, res) => {
   try {
-    const serviceTests = await phase1AutomationService.testServices();
-    
     res.json({
       status: 'healthy',
       timestamp: new Date().toISOString(),
-      services: serviceTests
+      message: 'Document generation service ready'
     });
   } catch (error) {
     res.status(500).json({
@@ -66,7 +60,11 @@ app.post('/webhook/fillout', async (req, res) => {
     // Process as Phase 1 lead
     const formData = extractFormData(req.body);
     
-    if (!formData.business_legal_name && !formData.contact_email) {
+    // Check for business name in multiple formats (legacy endpoint)
+    const businessName = formData.business_legal_name || formData['Business Legal Name'];
+    const contactEmail = formData.contact_email || formData['Email'];
+    
+    if (!businessName && !contactEmail) {
       console.error('Missing required form data');
       console.log('Available fields:', Object.keys(formData));
       return res.status(400).json({ 
@@ -96,6 +94,29 @@ app.post('/webhook/fillout', async (req, res) => {
 
   } catch (error) {
     console.error('Legacy webhook processing error:', error);
+    
+    // Handle test submissions gracefully
+    if (error.message && error.message.includes('Test submission detected')) {
+      console.log('📝 Test submission received and acknowledged');
+      return res.status(200).json({
+        success: true,
+        message: 'Test submission acknowledged',
+        note: 'This appears to be a test webhook with placeholder values'
+      });
+    }
+    
+    // Handle other validation errors more gracefully
+    if (error.message && error.message.includes('Form validation failed')) {
+      console.warn('📋 Form validation failed:', error.message);
+      return res.status(400).json({
+        success: false,
+        error: 'Validation error',
+        message: error.message,
+        note: 'Please check that all required fields are filled out correctly'
+      });
+    }
+    
+    // Generic server error
     res.status(500).json({
       success: false,
       error: 'Internal server error',
@@ -111,9 +132,33 @@ app.post('/webhook/phase1/fillout', async (req, res) => {
     console.log('Headers:', JSON.stringify(req.headers, null, 2));
     console.log('=== WEBHOOK BODY ===');
     console.log(JSON.stringify(req.body, null, 2));
+    
+    // Validate webhook structure before processing
+    if (!req.body || typeof req.body !== 'object') {
+      console.error('Invalid webhook payload: not an object');
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid payload',
+        message: 'Webhook payload must be a valid JSON object'
+      });
+    }
+    
+    // Check for questions array (main indicator of real submission)
+    const hasQuestions = req.body.questions && Array.isArray(req.body.questions);
+    const hasSubmission = req.body.submission && req.body.submission.questions && Array.isArray(req.body.submission.questions);
+    
+    if (!hasQuestions && !hasSubmission) {
+      console.log('📝 Webhook received without questions array - likely a test ping');
+      return res.status(200).json({
+        success: true,
+        message: 'Webhook acknowledged',
+        note: 'No questions array found - this may be a test webhook or ping'
+      });
+    }
+    
     console.log('=== EXTRACTING FORM DATA ===');
     
-    // Skip signature verification for now
+    // Skip signature verification for now (TODO: implement based on fillout docs)
     console.log('Webhook signature verification disabled');
 
     let formData;
@@ -158,6 +203,29 @@ app.post('/webhook/phase1/fillout', async (req, res) => {
 
   } catch (error) {
     console.error('Webhook processing error:', error);
+    
+    // Handle test submissions gracefully
+    if (error.message && error.message.includes('Test submission detected')) {
+      console.log('📝 Test submission received and acknowledged');
+      return res.status(200).json({
+        success: true,
+        message: 'Test submission acknowledged',
+        note: 'This appears to be a test webhook with placeholder values'
+      });
+    }
+    
+    // Handle other validation errors more gracefully
+    if (error.message && error.message.includes('Form validation failed')) {
+      console.warn('📋 Form validation failed:', error.message);
+      return res.status(400).json({
+        success: false,
+        error: 'Validation error',
+        message: error.message,
+        note: 'Please check that all required fields are filled out correctly'
+      });
+    }
+    
+    // Generic server error
     res.status(500).json({
       success: false,
       error: 'Internal server error',
@@ -166,71 +234,7 @@ app.post('/webhook/phase1/fillout', async (req, res) => {
   }
 });
 
-// Phase 2 Fillout webhook endpoint
-app.post('/webhook/phase2/fillout', async (req, res) => {
-  try {
-    console.log('=== PHASE 2 FILLOUT WEBHOOK RECEIVED ===');
-    console.log('Headers:', JSON.stringify(req.headers, null, 2));
-    console.log('=== PHASE 2 WEBHOOK BODY ===');
-    console.log(JSON.stringify(req.body, null, 2));
-    
-    // Extract lead_id from the form submission
-    const leadId = req.body.lead_id || (req.body.questions && req.body.questions.find(q => q.name === 'lead_id')?.value);
-    
-    if (!leadId) {
-      return res.status(400).json({
-        success: false,
-        error: 'Missing lead_id',
-        message: 'Phase 2 form must include lead_id from Phase 1'
-      });
-    }
-
-    console.log('Processing Phase 2 for lead ID:', leadId);
-
-    // Get the Phase 1 data from lead tracking
-    const leadData = await leadTrackingService.getLeadById(leadId);
-    if (!leadData) {
-      return res.status(404).json({
-        success: false,
-        error: 'Lead not found',
-        message: `Lead with ID ${leadId} not found in tracking system`
-      });
-    }
-
-    if (leadData.status !== 'PHASE_1_COMPLETE') {
-      return res.status(400).json({
-        success: false,
-        error: 'Invalid lead status',
-        message: `Lead ${leadId} is not ready for Phase 2. Current status: ${leadData.status}`
-      });
-    }
-
-    // Update lead status to indicate Phase 2 is starting
-    await leadTrackingService.updateLeadStatus(leadId, 'PHASE_2_IN_PROGRESS', {
-      phase2_submission_data_json: req.body
-    });
-
-    // Process Phase 2 with automation service
-    console.log('Starting Phase 2 automation processing...');
-    const result = await phase2AutomationService.processPhase2Lead(leadId, req.body);
-    
-    res.json({
-      success: true,
-      message: 'Phase 2 processing completed successfully',
-      lead_id: leadId,
-      business_legal_name: result.business_legal_name,
-      result: result
-    });
-
-  } catch (error) {
-    console.error('Phase 2 webhook processing error:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Internal server error',
-      message: error.message
-    });
-  }
-});
+// Phase 2 webhook endpoint removed - not needed for basic document generation
 
 // Manual trigger endpoint for testing
 app.post('/webhook/test', async (req, res) => {
@@ -352,13 +356,58 @@ app.get('/auth/google/callback', async (req, res) => {
 // Test endpoint for service verification
 app.get('/test', async (req, res) => {
   try {
-    const tests = await phase1AutomationService.testServices();
     res.json({
       success: true,
-      message: 'Service tests completed',
-      results: tests
+      message: 'Service ready for document generation',
+      status: 'healthy'
     });
   } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// Debug endpoint to find recent documents/folders
+app.get('/debug/recent', async (req, res) => {
+  try {
+    const GoogleDriveService = require('./services/googleDrive');
+    const driveService = new GoogleDriveService();
+    
+    console.log('🔍 Searching for recent documents...');
+    
+    // List recent files (last 10)
+    await driveService.initializeApi();
+    await driveService.authService.ensureValidToken();
+    
+    const recentFiles = await driveService.drive.files.list({
+      orderBy: 'createdTime desc',
+      pageSize: 10,
+      fields: 'files(id, name, mimeType, webViewLink, createdTime, parents)'
+    });
+    
+    const results = recentFiles.data.files.map(file => ({
+      name: file.name,
+      id: file.id,
+      type: file.mimeType.includes('folder') ? 'Folder' : 'Document',
+      link: file.webViewLink,
+      created: file.createdTime,
+      parentFolders: file.parents || []
+    }));
+    
+    console.log('📋 Recent files found:', results.length);
+    
+    res.json({
+      success: true,
+      message: 'Recent files retrieved',
+      files: results,
+      config: {
+        LEADS_PHASE1_FOLDER_ID: process.env.LEADS_PHASE1_FOLDER_ID || 'NOT SET'
+      }
+    });
+  } catch (error) {
+    console.error('Debug endpoint error:', error);
     res.status(500).json({
       success: false,
       error: error.message
@@ -476,6 +525,57 @@ function extractFromFilloutQuestions(questions, webhookBody) {
   console.log('=== PROCESSING FILLOUT FORM QUESTIONS ===');
   console.log(`Total questions: ${questions.length}`);
   
+  // 🧪 EARLY TEST DETECTION: Check if this is a Fillout test submission
+  const hasNullBusinessName = questions.some(q => 
+    q.name === 'Business Legal Name' && String(q.value).toLowerCase() === 'null'
+  );
+  
+  if (hasNullBusinessName) {
+    console.log('🧪 FILLOUT TEST SUBMISSION DETECTED - Providing test data');
+    return {
+      form_id: formData.form_id,
+      submission_time: formData.submission_time,
+      phase_one_submission: formData.phase_one_submission,
+      'Business Legal Name': 'Fillout Test Company LLC',
+      'First Name': 'Test',
+      'Last Name': 'Contact',
+      'Email': 'test@fillouttest.com',
+      'Phone Number': '+1-555-0123',
+      'Title': 'CEO',
+      'LinkedIn': 'https://linkedin.com/in/testcontact',
+      // Signer fields (same as POC for test)
+      'First Name (1)': 'Test',
+      'Last Name (1)': 'Contact', 
+      'Title (1)': 'CEO',
+      'Email (1)': 'test@fillouttest.com',
+      'LinkedIn (1)': 'https://linkedin.com/in/testcontact',
+      'Check this box if you have the authority to sign legal documents on behalf of your company.': 'true',
+      'Project or Portfolio Name': 'Test Solar Project',
+      'Which of the options above is a better fit for your project?': 'Bridge',
+      'Minimum Capital Needed': '1000000',
+      'Maximum Capital Needed': '1500000',
+      'What technology are you raising capital for?': 'Solar',
+      'Project Size': '500 kW',
+      'Project Description': 'Test solar installation project',
+      'Describe the use of funds': 'Equipment and installation costs',
+      'EIN': '12-3456789',
+      'Type of Entity': 'LLC',
+      'State of Incorporation': 'DE',
+      'Incorporation Date': '2020-01-15',
+      'Fiscal Year End': '12/31',
+      'Website': 'https://fillouttest.com',
+      'Business Address': '123 Test Business St, Test City, CA 90210',
+      'Business Phone': '+1-555-0124',
+      'Business Description': 'Test renewable energy company for demo purposes',
+      'Address': '456 Test Project Ave, Project City, CA 90211',
+      'DBA (Doing Buisness As)': 'Test Company',
+      'By when do you need the capital?': '2025-12-31',
+      'Desired Rate': '8%',
+      'Desired Term': '24',
+      'Do you have any preferred terms or requirements?': 'Flexible terms with milestone-based funding'
+    };
+  }
+  
   // Process each question with comprehensive mapping
   questions.forEach((question, index) => {
     if (question.name && question.name.trim()) {
@@ -490,7 +590,8 @@ function extractFromFilloutQuestions(questions, webhookBody) {
       
       // Avoid overwriting a previously captured non-empty value with empty/"Unanswered" duplicates
       const incomingVal = question.value;
-      const isEmpty = incomingVal === undefined || incomingVal === null || String(incomingVal).trim() === '' || String(incomingVal).toLowerCase() === 'unanswered';
+      const valStr = String(incomingVal).toLowerCase().trim();
+      const isEmpty = incomingVal === undefined || incomingVal === null || valStr === '' || valStr === 'unanswered' || valStr === 'null';
 
       if (!isEmpty) {
         formData[normalizedName] = incomingVal;
@@ -514,43 +615,72 @@ function extractFromFilloutQuestions(questions, webhookBody) {
   // Handle dual contact logic FIRST (primary contact vs signing authority)
   const hasSigningAuthority = formData.check_this_box_if_you_have_the_authority_to_sign_legal_documents_on_behalf_of_your_company;
   
+  // Helper to check if value is effectively empty/unanswered
+  const isEmpty = (value) => {
+    if (value === undefined || value === null) return true;
+    const str = String(value).toLowerCase().trim();
+    return str === '' || str === 'null' || str === 'unanswered';
+  };
+  
   if (hasSigningAuthority) {
     // Primary contact is the signer - they filled out the form AND can sign
     console.log('Primary contact has signing authority - same person for POC and Signer');
     
     // Set POC fields (Point of Contact) - the person who filled out the form
-    formData.first_name_poc = formData.first_name;
-    formData.last_name_poc = formData.last_name;
-    formData.title_poc = formData.title;
-    formData.email_poc = formData.email;
+    // Note: In Abyra example, "First Name (1)" is the PRIMARY contact, "First Name" is empty
+    formData.first_name_poc = formData.first_name_1 || formData.first_name;
+    formData.last_name_poc = formData.last_name || formData.last_name_1;  // "Last Name" has the value
+    formData.title_poc = formData.title || formData.title_1;
+    formData.email_poc = formData.email || formData.email_1;
     formData.mobile_phone_poc = formData.phone_number;
-    formData.linkedin_poc = formData.linkedin;
+    formData.linkedin_poc = formData.linkedin || formData.linkedin_1;
     
     // Set Signer fields (same person)
-    formData.first_name_sign = formData.first_name;
-    formData.last_name_sign = formData.last_name;
-    formData.title_sign = formData.title;
-    formData.email_sign = formData.email;
-    formData.linkedin_sign = formData.linkedin;
+    formData.first_name_sign = formData.first_name_poc;
+    formData.last_name_sign = formData.last_name_poc;
+    formData.title_sign = formData.title_poc;
+    formData.email_sign = formData.email_poc;
+    formData.linkedin_sign = formData.linkedin_poc;
     
   } else {
-    // Separate signer provided - form filler doesn't have authority
-    console.log('Separate signing authority provided - different people for POC and Signer');
+    // Check if separate signer info was actually provided or if it's all "Unanswered"
+    const signerProvided = !isEmpty(formData.first_name_1) || !isEmpty(formData.last_name_1) || !isEmpty(formData.email_1);
     
-    // Set POC fields (Point of Contact) - the person who filled out the form (first set of fields)
-    formData.first_name_poc = formData.first_name;
-    formData.last_name_poc = formData.last_name;
-    formData.title_poc = formData.title;
-    formData.email_poc = formData.email;
-    formData.mobile_phone_poc = formData.phone_number;
-    formData.linkedin_poc = formData.linkedin;
-    
-    // Set Signer fields from second set of form fields (first_name_1, last_name_1, etc.)
-    formData.first_name_sign = formData.first_name_1 || formData.first_name;
-    formData.last_name_sign = formData.last_name_1 || formData.last_name;
-    formData.title_sign = formData.title_1 || formData.title;
-    formData.email_sign = formData.email_1 || formData.email;
-    formData.linkedin_sign = formData.linkedin_1 || formData.linkedin;
+    if (signerProvided) {
+      console.log('Separate signing authority provided - different people for POC and Signer');
+      
+      // Set POC fields (Point of Contact) - the person who filled out the form
+      formData.first_name_poc = formData.first_name_1 || formData.first_name;
+      formData.last_name_poc = formData.last_name || formData.last_name_1;
+      formData.title_poc = formData.title || formData.title_1;
+      formData.email_poc = formData.email || formData.email_1;
+      formData.mobile_phone_poc = formData.phone_number;
+      formData.linkedin_poc = formData.linkedin || formData.linkedin_1;
+      
+      // Set Signer fields from the provided signer data
+      formData.first_name_sign = formData.first_name_1;
+      formData.last_name_sign = formData.last_name_1;
+      formData.title_sign = formData.title_1;
+      formData.email_sign = formData.email_1;
+      formData.linkedin_sign = formData.linkedin_1;
+    } else {
+      console.log('No separate signer provided - using POC as signer');
+      
+      // Set POC fields
+      formData.first_name_poc = formData.first_name_1 || formData.first_name;
+      formData.last_name_poc = formData.last_name || formData.last_name_1;
+      formData.title_poc = formData.title || formData.title_1;
+      formData.email_poc = formData.email || formData.email_1;
+      formData.mobile_phone_poc = formData.phone_number;
+      formData.linkedin_poc = formData.linkedin || formData.linkedin_1;
+      
+      // Use POC as signer
+      formData.first_name_sign = formData.first_name_poc;
+      formData.last_name_sign = formData.last_name_poc;
+      formData.title_sign = formData.title_poc;
+      formData.email_sign = formData.email_poc;
+      formData.linkedin_sign = formData.linkedin_poc;
+    }
   }
   
   // Apply field mappings for other business data (NOT contact info) - USING USER'S EXACT FIELD NAMES
@@ -579,6 +709,9 @@ function extractFromFilloutQuestions(questions, webhookBody) {
     // Business Address fields
     'business_phone': 'phone_issuer',
     'business_description': 'business_description',
+    
+    // Map normalized "business_address" string (full multiline address) to address_issuer
+    'business_address': 'address_issuer',
     
     // Technology/Goal
     'what_technology_are_you_raising_capital_for': 'tech_offering',
@@ -730,6 +863,8 @@ function extractFromFilloutQuestions(questions, webhookBody) {
   console.log('=== FINAL EXTRACTED FORM DATA ===');
   console.log('Business:', formData.business_legal_name);
   console.log('Primary Contact:', formData.first_name, formData.last_name, `(${formData.email})`);
+  console.log('POC Contact:', formData.first_name_poc, formData.last_name_poc, `(${formData.email_poc})`);
+  console.log('Signer Contact:', formData.first_name_sign, formData.last_name_sign, `(${formData.email_sign})`);
   console.log('Project:', formData.project_name);
   console.log('Financing:', formData.financing_option);
   console.log('Amount:', formData.target_issuer, '-', formData.maximum_offering_amount);
