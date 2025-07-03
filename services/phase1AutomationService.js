@@ -650,7 +650,9 @@ class Phase1AutomationService {
     };
     
     // Critical fields validation - check both original form format AND normalized format
-    const businessName = formData['Business Legal Name'] || formData.business_legal_name;
+    const businessName = formData['Business Legal Name'] || formData.business_legal_name
+      || formData.business_name || formData.company_name || formData.legal_business_name
+      || formData.legal_name || formData.doing_business_as || formData.dba || formData.dba_doing_business_as;
     if (isEmpty(businessName)) {
       errors.push('Business Legal Name is required');
     }
