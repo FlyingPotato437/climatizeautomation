@@ -1,0 +1,167 @@
+{
+  "formId": "FORM_PHASE2_REGULATION",
+  "submission": {
+    "submissionId": "SUB_002_PHASE2",
+    "submissionTime": "2025-06-24T15:30:00Z",
+    "leadId": "test-lead-abyra-001",
+    "questions": [
+      {
+        "name": "First Name",
+        "value": "Raul"
+      },
+      {
+        "name": "Last Name", 
+        "value": "Gonzalez"
+      },
+      {
+        "name": "Title",
+        "value": "Chief Executive Officer"
+      },
+      {
+        "name": "Email",
+        "value": "raul.gonzalez@abyragroup.com"
+      },
+      {
+        "name": "Phone Number",
+        "value": "+19563719977"
+      },
+      {
+        "name": "Business Legal Name",
+        "value": "Abyra Group Inc."
+      },
+      {
+        "name": "EIN",
+        "value": "84-3184736"
+      },
+      {
+        "name": "Type of Entity",
+        "value": "Domestic For-Profit Corporation"
+      },
+      {
+        "name": "State of Incorporation",
+        "value": "TX"
+      },
+      {
+        "name": "Business Address",
+        "value": "30512 Ratliff Rd\nSan Benito Texas 78586\nUnited States"
+      },
+      {
+        "name": "Project or Portfolio Name",
+        "value": "Abyra Group Inc. Solar Project - Phase 2"
+      },
+      {
+        "name": "Company Description",
+        "value": "Abyra Group Inc. is a Texas-based corporation specializing in renewable energy development and implementation. The company focuses on commercial solar installations and energy efficiency solutions for industrial facilities. Founded in 2019, Abyra Group has completed multiple solar projects across Texas and is expanding its renewable energy portfolio through strategic financing partnerships."
+      },
+      {
+        "name": "Funding Amount",
+        "value": "$1,750,000"
+      },
+      {
+        "name": "Use of Funds",
+        "value": "Proceeds will be used to complete the 687.5 kW rooftop solar installation at our San Benito facility. Funds will cover final equipment procurement ($800K), installation labor ($550K), electrical infrastructure upgrades ($200K), permits and inspections ($50K), and working capital ($150K) until REAP grant reimbursement and ITC monetization."
+      },
+      {
+        "name": "Team Size",
+        "value": "12"
+      },
+      {
+        "name": "Project Timeline",
+        "value": "Construction completion within 6 months of funding. REAP grant reimbursement expected within 90 days of project completion. ITC monetization anticipated within 12 months."
+      },
+      {
+        "name": "Regulatory Approvals",
+        "value": "SEC Form D filed on June 15, 2025 (Accession Number: 0001234567-25-000001). Texas PUC interconnection agreement executed. USDA REAP grant award letter dated March 1, 2025 for $999,871. Local building permits approved by Cameron County. Environmental clearance completed with no adverse findings."
+      },
+      {
+        "name": "Articles of Incorporation",
+        "value": "https://climatize-uploads.s3.amazonaws.com/abyra/articles-of-incorporation-84-3184736.pdf"
+      },
+      {
+        "name": "EIN Documentation", 
+        "value": "https://climatize-uploads.s3.amazonaws.com/abyra/ein-determination-letter-84-3184736.pdf"
+      },
+      {
+        "name": "Cap Table",
+        "value": "https://climatize-uploads.s3.amazonaws.com/abyra/capitalization-table-2025-q2.xlsx"
+      },
+      {
+        "name": "Governing Documents",
+        "value": "https://climatize-uploads.s3.amazonaws.com/abyra/corporate-bylaws-amended-2024.pdf"
+      },
+      {
+        "name": "Financial Statements",
+        "value": "https://climatize-uploads.s3.amazonaws.com/abyra/audited-financials-2024.pdf"
+      },
+      {
+        "name": "Primary Bank",
+        "value": "Frost Bank"
+      },
+      {
+        "name": "Bank Account Number",
+        "value": "****5847"
+      },
+      {
+        "name": "Routing Number",
+        "value": "114000093"
+      },
+      {
+        "name": "Project Description",
+        "value": "Abyra Group Inc. is developing a 687.5 kW rooftop solar photovoltaic system on its manufacturing facility in San Benito, Texas. The project will offset approximately 75% of the facility's annual electricity consumption, generating estimated annual savings of $83,000. The system utilizes high-efficiency monocrystalline panels with power optimizers and will be interconnected under a net metering agreement with the local utility. Engineering and design are complete, with installation scheduled to begin upon funding closure."
+      },
+      {
+        "name": "Business Description",
+        "value": "Abyra Group Inc. operates a 50,000 square foot manufacturing facility producing specialized industrial equipment for the oil and gas sector. The company has been profitable for the past three years with annual revenues of approximately $8.5 million. Management seeks to reduce operational costs through renewable energy adoption while supporting corporate sustainability goals."
+      },
+      {
+        "name": "Minimum Capital Needed",
+        "value": "1750000"
+      },
+      {
+        "name": "Maximum Capital Needed", 
+        "value": "1750000"
+      },
+      {
+        "name": "Desired Rate",
+        "value": "8.5"
+      },
+      {
+        "name": "Desired Term",
+        "value": "36"
+      },
+      {
+        "name": "Filing Date",
+        "value": "June 24, 2025"
+      },
+      {
+        "name": "Submission Date",
+        "value": "June 24, 2025"
+      },
+      {
+        "name": "Form Completion Status",
+        "value": "Complete - Ready for SEC Filing"
+      },
+      {
+        "name": "Legal Counsel",
+        "value": "Martinez & Associates LLP, Austin, TX"
+      },
+      {
+        "name": "Financial Auditor",
+        "value": "Thompson CPA Group, McAllen, TX"
+      },
+      {
+        "name": "Escrow Agent",
+        "value": "Texas Title Company, San Benito Branch"
+      }
+    ]
+  },
+  "metadata": {
+    "phase": "2",
+    "leadSource": "phase1_graduation",
+    "complianceStatus": "ready_for_filing",
+    "documentsComplete": true,
+    "escrowAccountEstablished": true,
+    "regulatoryApprovalsObtained": true,
+    "processingNotes": "All Phase 2 requirements satisfied. Ready for document generation and SEC filing preparation."
+  }
+}

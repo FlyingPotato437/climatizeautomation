@@ -23,9 +23,11 @@ const TEMPLATE_IDS = {
 
 // Phase 2 Template IDs for regulatory documents
 const PHASE_2_TEMPLATE_IDS = {
-  FORM_C: process.env.FORM_C_TEMPLATE_ID || 'your_form_c_template_id_here',
-  PROJECT_SUMMARY: process.env.PROJECT_SUMMARY_TEMPLATE_ID || 'your_project_summary_template_id_here',
-  CERTIFICATION_STATEMENT: process.env.CERTIFICATION_STATEMENT_TEMPLATE_ID || 'your_certification_statement_template_id_here',
+  // Regulatory / disclosure docs
+  FORM_C: '1wA5llbn1FDU0XfYopcDbK8olc1a5qDUTBJ3svSuRTI8',
+  CERTIFICATION_STATEMENT: '1_D185sbOY-CTfULWTWk8g6s4pyvAjomOFGB8t9RfuUo',
+  PROJECT_SUMMARY: '1OS7q3Zzo8wc6wWXpK-jNsklkiArgs0xndqGClBDSN1Y',
+  // Place-holders retained for future use (Phase-2 workflows)
   PROJECT_CARD: process.env.PROJECT_CARD_TEMPLATE_ID || 'your_project_card_template_id_here',
   FILING_FORM_C: process.env.FILING_FORM_C_TEMPLATE_ID || 'your_filing_form_c_template_id_here'
 };

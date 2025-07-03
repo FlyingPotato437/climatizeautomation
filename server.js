@@ -525,56 +525,11 @@ function extractFromFilloutQuestions(questions, webhookBody) {
   console.log('=== PROCESSING FILLOUT FORM QUESTIONS ===');
   console.log(`Total questions: ${questions.length}`);
   
-  // 🧪 EARLY TEST DETECTION: Check if this is a Fillout test submission
-  const hasNullBusinessName = questions.some(q => 
-    q.name === 'Business Legal Name' && String(q.value).toLowerCase() === 'null'
-  );
-  
-  if (hasNullBusinessName) {
-    console.log('🧪 FILLOUT TEST SUBMISSION DETECTED - Providing test data');
-    return {
-      form_id: formData.form_id,
-      submission_time: formData.submission_time,
-      phase_one_submission: formData.phase_one_submission,
-      'Business Legal Name': 'Fillout Test Company LLC',
-      'First Name': 'Test',
-      'Last Name': 'Contact',
-      'Email': 'test@fillouttest.com',
-      'Phone Number': '+1-555-0123',
-      'Title': 'CEO',
-      'LinkedIn': 'https://linkedin.com/in/testcontact',
-      // Signer fields (same as POC for test)
-      'First Name (1)': 'Test',
-      'Last Name (1)': 'Contact', 
-      'Title (1)': 'CEO',
-      'Email (1)': 'test@fillouttest.com',
-      'LinkedIn (1)': 'https://linkedin.com/in/testcontact',
-      'Check this box if you have the authority to sign legal documents on behalf of your company.': 'true',
-      'Project or Portfolio Name': 'Test Solar Project',
-      'Which of the options above is a better fit for your project?': 'Bridge',
-      'Minimum Capital Needed': '1000000',
-      'Maximum Capital Needed': '1500000',
-      'What technology are you raising capital for?': 'Solar',
-      'Project Size': '500 kW',
-      'Project Description': 'Test solar installation project',
-      'Describe the use of funds': 'Equipment and installation costs',
-      'EIN': '12-3456789',
-      'Type of Entity': 'LLC',
-      'State of Incorporation': 'DE',
-      'Incorporation Date': '2020-01-15',
-      'Fiscal Year End': '12/31',
-      'Website': 'https://fillouttest.com',
-      'Business Address': '123 Test Business St, Test City, CA 90210',
-      'Business Phone': '+1-555-0124',
-      'Business Description': 'Test renewable energy company for demo purposes',
-      'Address': '456 Test Project Ave, Project City, CA 90211',
-      'DBA (Doing Buisness As)': 'Test Company',
-      'By when do you need the capital?': '2025-12-31',
-      'Desired Rate': '8%',
-      'Desired Term': '24',
-      'Do you have any preferred terms or requirements?': 'Flexible terms with milestone-based funding'
-    };
-  }
+  // 🧪 EARLY TEST DETECTION: Temporarily disabled to see real form structure
+  // const hasNullBusinessName = questions.some(q => 
+  //   q.name === 'Business Legal Name' && String(q.value).toLowerCase() === 'null'
+  // );
+  // if (hasNullBusinessName) { ... return test data ... }
   
   // Process each question with comprehensive mapping
   questions.forEach((question, index) => {
@@ -600,7 +555,21 @@ function extractFromFilloutQuestions(questions, webhookBody) {
         formData[normalizedName] = '';
       }
       
+      // CRITICAL: Also preserve the original field name for validation (especially for business name)
+      if (originalName === 'Business Legal Name' && !isEmpty) {
+        formData['Business Legal Name'] = incomingVal;
+        console.log(`🏢 BUSINESS NAME: Both "${originalName}" and "${normalizedName}" set to "${incomingVal}"`);
+      }
+      
       console.log(`Q${index + 1}: "${originalName}" -> ${normalizedName} = "${question.value}"`);
+      
+      // NEW: Enhanced logging for debugging new form structure
+      if (question.value && typeof question.value === 'object') {
+        console.log(`     📋 OBJECT VALUE:`, JSON.stringify(question.value, null, 2));
+      }
+      if (Array.isArray(question.value)) {
+        console.log(`     📊 ARRAY VALUE (${question.value.length} items):`, question.value);
+      }
     }
   });
   
@@ -710,9 +679,6 @@ function extractFromFilloutQuestions(questions, webhookBody) {
     'business_phone': 'phone_issuer',
     'business_description': 'business_description',
     
-    // Map normalized "business_address" string (full multiline address) to address_issuer
-    'business_address': 'address_issuer',
-    
     // Technology/Goal
     'what_technology_are_you_raising_capital_for': 'tech_offering',
     'technology': 'tech_offering',
@@ -749,8 +715,10 @@ function extractFromFilloutQuestions(questions, webhookBody) {
     if (originalField in formData && formData[originalField] !== null && formData[originalField] !== undefined) {
       formData[targetField] = formData[originalField];
       console.log(`Mapped: ${originalField} -> ${targetField} = "${formData[originalField]}"`);
-      if (targetField !== originalField) {
-        delete formData[originalField];            // ⬅️ NEW delete legacy key to avoid duplicate placeholders
+      // Don't delete original field if it might be needed for validation
+      const criticalFields = ['Business Legal Name', 'business_legal_name', 'Email', 'email'];
+      if (targetField !== originalField && !criticalFields.includes(originalField)) {
+        delete formData[originalField];            // Delete legacy key to avoid duplicate placeholders
       }
     }
   });
@@ -762,6 +730,17 @@ function extractFromFilloutQuestions(questions, webhookBody) {
     if (formData.business_legal_name) {
       console.log(`✅ business_legal_name fallback assigned: ${formData.business_legal_name}`);
     }
+  }
+  
+  // CRITICAL FIX: Ensure both original and normalized business name fields are available
+  // The validation expects either 'Business Legal Name' or 'business_legal_name'
+  if (formData.business_legal_name && !formData['Business Legal Name']) {
+    formData['Business Legal Name'] = formData.business_legal_name;
+    console.log(`✅ Restored original Business Legal Name field: ${formData.business_legal_name}`);
+  }
+  if (formData['Business Legal Name'] && !formData.business_legal_name) {
+    formData.business_legal_name = formData['Business Legal Name'];
+    console.log(`✅ Set normalized business_legal_name: ${formData['Business Legal Name']}`);
   }
 
   if (!formData.contact_email) {
@@ -861,13 +840,23 @@ function extractFromFilloutQuestions(questions, webhookBody) {
   }
   
   console.log('=== FINAL EXTRACTED FORM DATA ===');
-  console.log('Business:', formData.business_legal_name);
+  console.log('Business (normalized):', formData.business_legal_name);
+  console.log('Business (original):', formData['Business Legal Name']);
   console.log('Primary Contact:', formData.first_name, formData.last_name, `(${formData.email})`);
   console.log('POC Contact:', formData.first_name_poc, formData.last_name_poc, `(${formData.email_poc})`);
   console.log('Signer Contact:', formData.first_name_sign, formData.last_name_sign, `(${formData.email_sign})`);
   console.log('Project:', formData.project_name);
   console.log('Financing:', formData.financing_option);
   console.log('Amount:', formData.target_issuer, '-', formData.maximum_offering_amount);
+  
+  // VALIDATION CHECK: Ensure we have business name for downstream validation
+  const hasBusinessName = formData['Business Legal Name'] || formData.business_legal_name;
+  if (!hasBusinessName) {
+    console.error('🚨 CRITICAL: No business name found - downstream validation will fail!');
+    console.log('All form keys:', Object.keys(formData).slice(0, 20));
+  } else {
+    console.log('✅ Business name available for validation:', hasBusinessName);
+  }
   console.log('====================================');
   
   return formData;
