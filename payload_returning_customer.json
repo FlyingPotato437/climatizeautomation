@@ -1,0 +1,31 @@
+{
+  "form_id": "RETURNING_CUSTOMER_TEST",
+  "submission_time": "2025-07-14T10:30:00.000Z",
+  "questions": [
+    {"id": "Q1", "name": "First Name (1)", "value": "Joe"},
+    {"id": "Q2", "name": "Last Name", "value": "Gonzalez"},
+    {"id": "Q3", "name": "Title", "value": "Owner"},
+    {"id": "Q4", "name": "Email", "value": "joe@gmail.com"},
+    {"id": "Q5", "name": "Phone Number", "value": "+19563719977"},
+    {"id": "Q6", "name": "Check this box if you have the authority to sign legal documents on behalf of your company.", "value": "Yes"},
+
+    {"id": "Q7", "name": "Is this the first time you submit a project for funding with Climatize?", "value": "No"},
+    {"id": "Q7b", "name": "Have you submitted a project to Climatize before?", "value": "Yes"},
+    {"id": "Q7c", "name": "Will you be using the same entity to borrow the funds?", "value": "Yes"},
+
+    {"id": "Q31", "name": "Project or Portfolio Name", "value": "Joe's Solar Project Phase 2"},
+    {"id": "Q32", "name": "What technology are you raising capital for?", "value": "Solar"},
+    {"id": "Q33", "name": "Project Address", "value": {"address": "456 New Solar Ave", "city": "Austin", "state": "TX", "zipCode": "78701"}},
+    {"id": "Q34", "name": "Project Size", "value": "500 kW dc"},
+    {"id": "Q35", "name": "Minimum Capital Needed ($)", "value": "2000000"},
+    {"id": "Q36", "name": "Maximum Capital Needed ($)", "value": "2500000"},
+    {"id": "Q37", "name": "By when do you need the capital?", "value": "Dec 31 2025"},
+    {"id": "Q38", "name": "Project Description", "value": "Second phase solar installation for expanded capacity"},
+    {"id": "Q39", "name": "Describe the use of funds", "value": "Equipment purchase, installation, and grid connection"},
+    {"id": "Q40", "name": "Which of the options above is a better fit for your project?", "value": "Term Loan"},
+    {"id": "Q41", "name": "Do you have any preferred terms or requirements?", "value": "36 months, 8% interest"},
+    {"id": "Q42", "name": "Desired Rate", "value": "8%"},
+    {"id": "Q43", "name": "Desired Term", "value": "36"},
+    {"id": "Q44", "name": "Project Data Room", "value": "https://dataroom.example.com/joe-phase2"}
+  ]
+}

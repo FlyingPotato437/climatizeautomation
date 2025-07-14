@@ -172,10 +172,10 @@ class Phase2AutomationService {
     try {
       console.log('Moving Phase 1 documents to Data Room...');
       
-      // Get the Internal folder from Phase 1
-      const internalFolder = await this.phase2DriveUtils.findFolderByName('Internal', leadData.phase1_folder_id);
+      // Get the Phase 1 "Signed Docs" folder (formerly "Internal")
+      const internalFolder = await this.phase2DriveUtils.findFolderByName('5. Signed Docs', leadData.phase1_folder_id);
       if (!internalFolder) {
-        console.log('No Internal folder found in Phase 1, skipping document move');
+        console.log('No "5. Signed Docs" folder found in Phase 1, skipping document move');
         return;
       }
 

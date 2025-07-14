@@ -56,22 +56,37 @@ class GoogleDriveService {
       
       // Create main client folder
       const mainFolder = await this.createFolder(businessName, leadsPhase1FolderId);
-      
-      // Create Internal and External subfolders
-      console.log('📁 Creating subfolders...');
-      const internalFolder = await this.createFolder('Internal', mainFolder.id);
-      const externalFolder = await this.createFolder('External', mainFolder.id);
+
+      // Create Phase 1 documentation subfolders (numbered for clarity)
+      console.log('📁 Creating Phase 1 documentation subfolders...');
+
+      const dataRoomFolder       = await this.createFolder('1. Data Room', mainFolder.id);
+      const financialsFolder     = await this.createFolder('2. Financials', mainFolder.id);
+      const escrowFolder         = await this.createFolder('3. Escrow', mainFolder.id);
+      const fsFolder             = await this.createFolder('4. FS', mainFolder.id);
+      const signedDocsFolder     = await this.createFolder('5. Signed Docs', mainFolder.id);
+      const disbursementsFolder  = await this.createFolder('6. Disbursements', mainFolder.id);
 
       const result = {
         main: mainFolder,
-        internal: internalFolder,
-        external: externalFolder
+        // Preserve "internal" key for backwards‐compatibility, now pointing to Signed Docs
+        internal: signedDocsFolder,
+        dataRoom: dataRoomFolder,
+        financials: financialsFolder,
+        escrow: escrowFolder,
+        fs: fsFolder,
+        signedDocs: signedDocsFolder,
+        disbursements: disbursementsFolder
       };
 
       console.log('🎉 Folder structure created successfully!');
       console.log(`   📁 Main: ${mainFolder.webViewLink}`);
-      console.log(`   📁 Internal: ${internalFolder.webViewLink}`);
-      console.log(`   📁 External: ${externalFolder.webViewLink}`);
+      console.log(`   📁 1. Data Room: ${dataRoomFolder.webViewLink}`);
+      console.log(`   📁 2. Financials: ${financialsFolder.webViewLink}`);
+      console.log(`   📁 3. Escrow: ${escrowFolder.webViewLink}`);
+      console.log(`   📁 4. FS: ${fsFolder.webViewLink}`);
+      console.log(`   📁 5. Signed Docs: ${signedDocsFolder.webViewLink}`);
+      console.log(`   📁 6. Disbursements: ${disbursementsFolder.webViewLink}`);
 
       return result;
     } catch (error) {

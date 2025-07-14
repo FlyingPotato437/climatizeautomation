@@ -239,11 +239,12 @@ app.post('/webhook/phase1/fillout', async (req, res) => {
 // Manual trigger endpoint for testing
 app.post('/webhook/test', async (req, res) => {
   try {
-    console.log('Test webhook triggered');
+    console.log('🚀 TEST WEBHOOK TRIGGERED');
+    console.log('📥 Request body:', JSON.stringify(req.body, null, 2));
     
     const testData = {
-      // Core required fields
-      business_legal_name: req.body.business_legal_name || 'Test Replacement Company Inc.',
+      // Core required fields - let sheets lookup fill business_legal_name
+      business_legal_name: req.body.business_legal_name || undefined,
       contact_email: req.body.contact_email || req.body.email || 'test@example.com',
       email: req.body.email || req.body.contact_email || 'test@example.com',
       contact_name: req.body.contact_name || `${req.body.first_name || 'John'} ${req.body.last_name || 'Doe'}`,

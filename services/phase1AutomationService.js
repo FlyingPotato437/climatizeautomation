@@ -1,5 +1,6 @@
 const GoogleDocsService = require('./googleDocs');
 const GoogleDriveService = require('./googleDrive');
+const GoogleSheetsService = require('./googleSheets');
 const { TEMPLATE_IDS, PHASE_2_TEMPLATE_IDS, PROJECT_TYPE_CONFIG } = require('../config/templateIds');
 require('dotenv').config();
 
@@ -8,6 +9,7 @@ class Phase1AutomationService {
     console.log('Initializing Phase1AutomationService...');
     this.docsService = null;
     this.driveService = null;
+    this.sheetsService = null;
 
     // === OFFLINE TEST STUBS ===
     if (process.env.STUB_GOOGLE === 'true') {
@@ -55,6 +57,10 @@ class Phase1AutomationService {
       console.log('Creating GoogleDriveService...');
       this.driveService = new GoogleDriveService();
     }
+    if (!this.sheetsService) {
+      console.log('Creating GoogleSheetsService...');
+      this.sheetsService = new GoogleSheetsService();
+    }
   }
 
   // CLEAN FORM FIELD MAPPING - Single source of truth
@@ -87,6 +93,8 @@ class Phase1AutomationService {
       // Signing Authority
       'Check this box if you have the authority to sign legal documents on behalf of your company.': 'has_signing_authority',
       'Is this the first time you submit a project for funding with Climatize?': 'first_time_submit',
+      'Have you submitted a project to Climatize before?': 'previous_submit',
+      'Will you be using the same entity to borrow the funds?': 'same_entity_borrow',
       
       // Signer Information - keep for backwards compatibility
       'First Name Sign': 'first_name_sign',
@@ -254,12 +262,307 @@ class Phase1AutomationService {
     }
   }
 
+  // Check if business section is empty (indicating returning customer who skipped business section)
+  isBusinessSectionEmpty(enriched) {
+    const businessFields = [
+      'business_legal_name', 'doing_business_as', 'ein_number', 'entity_type',
+      'state_incorporation', 'date_incorporation', 'fiscal_year_end', 'website_issuer',
+      'address_issuer', 'phone_issuer', 'business_model', 'CCC_num', 'CIK_num',
+      'financial_statements_status', 'num_employees', 'debt_status'
+    ];
+    
+    const isEmpty = (value) => {
+      if (value === undefined || value === null) return true;
+      const str = String(value).toLowerCase().trim();
+      return str === '' || str === 'null' || str === 'unanswered';
+    };
+    
+    // Check if majority of business fields are empty
+    const emptyCount = businessFields.filter(field => isEmpty(enriched[field])).length;
+    const isBusinessEmpty = emptyCount >= (businessFields.length * 0.8); // 80% empty = business section skipped
+    
+    console.log(`🔍 Business section check: ${emptyCount}/${businessFields.length} fields empty (${isBusinessEmpty ? 'EMPTY' : 'HAS DATA'})`);
+    return isBusinessEmpty;
+  }
+
+  // Populate entire business section from Google Sheets data
+  populateBusinessSectionFromSheets(enriched, sheetData) {
+    console.log('📊 Mapping sheets columns to business template variables...');
+    
+    // Complete mapping from Google Sheets columns to business template variables
+    const sheetsToBusinessMapping = {
+      // Core Business Information
+      'Business Legal Name': 'business_legal_name',
+      'DBA (Doing Buisness As)': 'doing_business_as',
+      'DBA (Doing Business As)': 'doing_business_as', // Handle correct spelling
+      'EIN': 'ein_number',
+      'Type of Entity': 'entity_type',
+      'State of Incorporation': 'state_incorporation', 
+      'Incorporation Date': 'date_incorporation',
+      'Fiscal Year End': 'fiscal_year_end',
+      'Website': 'website_issuer',
+      'Business Phone': 'phone_issuer',
+      'Business Model': 'business_model',
+      'Please describe your business model': 'business_model',
+      
+      // Address fields
+      'Address - Business Physical Address': 'address_issuer',
+      'Business Physical Address': 'address_issuer',
+      'Address Line2 - Business Physical Address': 'address_line2_issuer',
+      'City - Business Physical Address': 'city_issuer',
+      'State - Business Physical Address': 'state_issuer',
+      'Zip - Business Physical Address': 'zip_issuer',
+      
+      // Regulatory Information
+      'CCC': 'CCC_num',
+      'CIK': 'CIK_num',
+      'Do you have reviewed or audited financial statements?': 'financial_statements_status',
+      'How many employees does your company currently have?': 'num_employees',
+      'Do you have any business debts?': 'debt_status',
+      'Have you raised funds using Reg CF or Reg D?': 'exempt_offerings_status',
+      
+      // Previous Offerings (if any in sheets)
+      'Date Offering 1': 'date_offering_1',
+      'Exemption 1': 'exemption_1', 
+      'Securities Offered 1': 'securities_offered_1',
+      'Amount Sold 1': 'amount_sold_1',
+      'Use of Proceeds 1': 'proceeds_1',
+      
+      // Add more as needed based on actual sheets columns
+    };
+    
+    let mappedCount = 0;
+    
+    // Map each sheets column to corresponding business field
+    Object.keys(sheetData).forEach(sheetsColumn => {
+      const businessField = sheetsToBusinessMapping[sheetsColumn];
+      
+      if (businessField && sheetData[sheetsColumn]) {
+        enriched[businessField] = sheetData[sheetsColumn];
+        console.log(`   📋 ${sheetsColumn} → ${businessField} = "${sheetData[sheetsColumn]}"`);
+        mappedCount++;
+        
+        // Special handling for EIN
+        if (businessField === 'ein_number') {
+          enriched.ein = sheetData[sheetsColumn];
+          enriched.sheets_ein_value = sheetData[sheetsColumn];
+        }
+        
+        // Build business address from components
+        if (businessField === 'address_issuer') {
+          enriched.business_address = sheetData[sheetsColumn];
+        }
+      }
+    });
+    
+    // Handle complex table data if present in sheets (20% owners, team members, debt schedule)
+    this.populateTableDataFromSheets(enriched, sheetData);
+    
+    console.log(`✅ Mapped ${mappedCount} business fields from sheets data`);
+  }
+
+  // Populate table data (owners, team, debt) from sheets if structured data exists
+  populateTableDataFromSheets(enriched, sheetData) {
+    console.log('🔍 Checking for structured table data in sheets...');
+    
+    // Initialize empty table data arrays to prevent undefined issues
+    enriched.owners_20_percent = enriched.owners_20_percent || [];
+    enriched.team_members = enriched.team_members || [];
+    enriched.debt_schedule = enriched.debt_schedule || [];
+    
+    // Clear any existing table variables to prevent conflicts
+    for (let i = 1; i <= 5; i++) {
+      // Clear 20% owners fields
+      enriched[`full_name_20_${i}`] = '';
+      enriched[`email20_${i}`] = '';
+      enriched[`type_20_${i}`] = '';
+      enriched[`ownership_20_${i}`] = '';
+      
+      // Clear team member fields  
+      enriched[`full_name_team_${i}`] = '';
+      enriched[`email_team_${i}`] = '';
+      enriched[`title_team_${i}`] = '';
+      
+      // Clear debt fields
+      enriched[`creditor_${i}`] = '';
+      enriched[`amount_debt_${i}`] = '';
+      enriched[`rate_debt_${i}`] = '';
+      enriched[`date_debt_${i}`] = '';
+    }
+    
+    // Parse structured table data from sheets if it exists
+    let ownerCount = 0;
+    let teamCount = 0;
+    let debtCount = 0;
+    
+    Object.keys(sheetData).forEach(key => {
+      // Parse 20% owners data
+      const ownerMatch = key.match(/Owner (\d+) (.+)/i);
+      if (ownerMatch) {
+        const ownerNum = parseInt(ownerMatch[1]);
+        const field = ownerMatch[2].toLowerCase();
+        if (ownerNum <= 5 && sheetData[key]) {
+          if (field.includes('name')) enriched[`full_name_20_${ownerNum}`] = sheetData[key];
+          if (field.includes('email')) enriched[`email20_${ownerNum}`] = sheetData[key];
+          if (field.includes('type')) enriched[`type_20_${ownerNum}`] = sheetData[key];
+          if (field.includes('ownership')) enriched[`ownership_20_${ownerNum}`] = sheetData[key];
+          ownerCount = Math.max(ownerCount, ownerNum);
+        }
+      }
+      
+      // Parse team member data
+      const teamMatch = key.match(/Team (\d+) (.+)/i) || key.match(/Member (\d+) (.+)/i);
+      if (teamMatch) {
+        const teamNum = parseInt(teamMatch[1]);
+        const field = teamMatch[2].toLowerCase();
+        if (teamNum <= 5 && sheetData[key]) {
+          if (field.includes('name')) enriched[`full_name_team_${teamNum}`] = sheetData[key];
+          if (field.includes('email')) enriched[`email_team_${teamNum}`] = sheetData[key];
+          if (field.includes('title')) enriched[`title_team_${teamNum}`] = sheetData[key];
+          teamCount = Math.max(teamCount, teamNum);
+        }
+      }
+      
+      // Parse debt schedule data  
+      const debtMatch = key.match(/Debt (\d+) (.+)/i) || key.match(/Creditor (\d+) (.+)/i);
+      if (debtMatch) {
+        const debtNum = parseInt(debtMatch[1]);
+        const field = debtMatch[2].toLowerCase();
+        if (debtNum <= 5 && sheetData[key]) {
+          if (field.includes('creditor') || field.includes('name')) enriched[`creditor_${debtNum}`] = sheetData[key];
+          if (field.includes('amount')) enriched[`amount_debt_${debtNum}`] = sheetData[key];
+          if (field.includes('rate') || field.includes('interest')) enriched[`rate_debt_${debtNum}`] = sheetData[key];
+          if (field.includes('date') || field.includes('completion')) enriched[`date_debt_${debtNum}`] = sheetData[key];
+          debtCount = Math.max(debtCount, debtNum);
+        }
+      }
+    });
+    
+    // Set debt status based on whether we found any debt data
+    if (debtCount > 0) {
+      enriched.debt_status = 'Yes';
+    } else if (sheetData['Do you have any business debts?']) {
+      enriched.debt_status = sheetData['Do you have any business debts?'];
+    }
+    
+    console.log(`📊 Found table data: ${ownerCount} owners, ${teamCount} team members, ${debtCount} debts`);
+  }
+
   // ENRICHMENT - Add derived data like parsed addresses
-  enrichData(normalizedData, formData) {
+  async enrichData(normalizedData, formData) {
     console.log('=== ENRICHING DATA ===');
+    console.log('🔍 DEBUG: first_name in normalizedData:', normalizedData.first_name);
+    console.log('🔍 DEBUG: first_name_poc in normalizedData:', normalizedData.first_name_poc);
+    console.log('🔍 DEBUG: first_name in formData:', formData.first_name);
     
     // Clone the normalized data to avoid mutation
     const enriched = { ...normalizedData };
+
+    // === FETCH BUSINESS DATA FROM SHEET IF PRIOR SUBMISSION ===
+    try {
+      // Check if business section is empty (returning customer flow)
+      const isBusinessSectionEmpty = this.isBusinessSectionEmpty(enriched);
+      
+      if (isBusinessSectionEmpty) {
+        console.log('🔍 Business section is empty - detecting returning customer');
+        const firstNameToCheck = enriched.first_name_poc || enriched.first_name;
+        
+        if (firstNameToCheck) {
+          console.log(`🔎 Looking up complete business data by first name: "${firstNameToCheck}"`);
+          const sheetDataByName = await this.sheetsService.getBusinessDataByFirstName(firstNameToCheck);
+          
+          if (sheetDataByName) {
+            console.log('📑 Found returning customer data - populating entire business section...');
+            this.populateBusinessSectionFromSheets(enriched, sheetDataByName);
+          } else {
+            console.log('❌ No previous data found for returning customer');
+          }
+        }
+      } else {
+        // Legacy logic for when business section has some data but we want to enhance it
+        const firstNameToCheck = enriched.first_name_poc || enriched.first_name;
+        if (firstNameToCheck) {
+          console.log(`🔎 Looking up previous business data by first name: "${firstNameToCheck}"`);
+          const sheetDataByName = await this.sheetsService.getBusinessDataByFirstName(firstNameToCheck);
+          if (sheetDataByName) {
+            console.log('📑 Found previous business data by first name, merging...');
+            // Merge sheet data - prioritize sheets data for core business fields
+            const priorityFields = [
+              'business_legal_name', 
+              'dba_(doing_buisness_as)', 
+              'ein', 
+              'type_of_entity',
+              'state_of_incorporation',
+              'incorporation_date',
+              'fiscal_year_end',
+              'website',
+              'address_-_business_physical_address',
+              'address_line2_-_business_physical_address', 
+              'city_-_business_physical_address'
+            ];
+            Object.keys(sheetDataByName).forEach(key => {
+              const normalizedKey = key.toLowerCase().replace(/\s+/g, '_');
+              const shouldOverride = priorityFields.includes(normalizedKey);
+              if (sheetDataByName[key] && (!enriched[normalizedKey] || shouldOverride)) {
+                enriched[normalizedKey] = sheetDataByName[key];
+                console.log(`   📋 Merged ${key}: ${sheetDataByName[key]}${shouldOverride ? ' (overridden)' : ''}`);
+                
+                // Special handling for EIN to preserve sheets value
+                if (key.toLowerCase() === 'ein') {
+                  enriched.sheets_ein_value = sheetDataByName[key];
+                  console.log(`   🔒 Preserved sheets EIN: ${sheetDataByName[key]}`);
+                }
+              }
+            });
+          }
+        }
+      }
+
+      // Then do the more specific lookup by email for returning clients
+      const alreadySubmitted = (enriched.previous_submit || enriched.first_time_submit || '').toString().toLowerCase();
+      const sameEntity = (enriched.same_entity_borrow || '').toString().toLowerCase();
+      if ((alreadySubmitted === 'yes' || alreadySubmitted === 'no') && sameEntity === 'yes') {
+        // For legacy field: if first_time_submit is 'no', treat as previous submit
+        const isPreviousSubmit = (enriched.previous_submit || '').toLowerCase() === 'yes' || alreadySubmitted === 'no';
+        if (isPreviousSubmit) {
+          const emailToLookup = enriched.email_poc || enriched.email || '';
+          if (emailToLookup) {
+            console.log('🔎 Looking up previous business data for:', emailToLookup);
+            const sheetData = await this.sheetsService.getBusinessDataByEmail(emailToLookup);
+            if (sheetData) {
+              console.log('📑 Found previous business data, merging...');
+              // Map sheet columns to our variable names where current value is empty
+              const sheetMapping = {
+                'Business Legal Name': 'business_legal_name',
+                'DBA (Doing Buisness As)': 'doing_business_as',
+                'EIN': 'ein_number',
+                'Type of Entity': 'entity_type',
+                'State of Incorporation': 'state_incorporation',
+                'Incorporation Date': 'date_incorporation',
+                'Fiscal Year End': 'fiscal_year_end',
+                'Website': 'website_issuer',
+                'Address - Business Physical Address': 'address_issuer',
+                'Business Phone': 'phone_issuer',
+                'Please describe your business model': 'business_model',
+                'CCC': 'CCC_num',
+                'CIK': 'CIK_num',
+                'Do you have reviewed or audited financial statements?': 'financial_statements_status',
+                'How many employees does your company currently have?': 'num_employees'
+              };
+              Object.entries(sheetMapping).forEach(([sheetCol, varName]) => {
+                if (!enriched[varName] || enriched[varName] === '') {
+                  enriched[varName] = sheetData[sheetCol] || '';
+                }
+              });
+            } else {
+              console.log('No previous row found for email in sheet');
+            }
+          }
+        }
+      }
+    } catch (sheetErr) {
+      console.error('Sheet lookup error:', sheetErr.message);
+    }
 
     // === PARSE ADDRESS OBJECTS INTO READABLE STRINGS ===
     // Handle Business Physical Address object
@@ -293,7 +596,7 @@ class Phase1AutomationService {
       enriched.owners_20_percent.forEach((owner, index) => {
         const num = index + 1;
         enriched[`full_name_20_${num}`] = owner.fullName || owner.name || '';
-        enriched[`email_20_${num}`] = owner.email || '';
+        enriched[`email20_${num}`] = owner.email || '';
         enriched[`type_20_${num}`] = owner.type || '';
         enriched[`ownership_20_${num}`] = owner.ownership || owner.ownershipPercentage || '';
         console.log(`   Owner ${num}: ${owner.fullName}, ${owner.email}, ${owner.ownership}`);
@@ -443,7 +746,7 @@ class Phase1AutomationService {
       enriched.owners_20_percent.forEach((owner, index) => {
         const num = index + 1;
         enriched[`full_name_20_${num}`] = owner.fullName || owner.name || '';
-        enriched[`email_20_${num}`] = owner.email || '';
+        enriched[`email20_${num}`] = owner.email || '';
         enriched[`type_20_${num}`] = owner.type || '';
         enriched[`ownership_20_${num}`] = owner.ownership || owner.ownershipPercentage || '';
       });
@@ -517,7 +820,7 @@ class Phase1AutomationService {
     if (!enriched.owners_20_percent || !Array.isArray(enriched.owners_20_percent) || enriched.owners_20_percent.length === 0) {
       console.log('📊 No 20% owners provided - adding empty placeholders');
       enriched.full_name_20_1 = '';
-      enriched.email_20_1 = '';
+      enriched.email20_1 = '';
       enriched.type_20_1 = '';
       enriched.ownership_20_1 = '';
     }
@@ -593,7 +896,7 @@ class Phase1AutomationService {
     // These are fallback placeholders in templates that should be empty if not used
     const placeholderPatterns = [
       // Owner table placeholders
-      'full_name_20_n', 'email_20_n', 'type_20_n', 'ownership_20_n',
+      'full_name_20_n', 'email20_n', 'type_20_n', 'ownership_20_n',
       // Team member placeholders  
       'full_name_team_n', 'email_team_n', 'title_team_n',
       // Debt schedule placeholders
@@ -603,7 +906,7 @@ class Phase1AutomationService {
       // Also clean up numbered placeholders that might be unused
       'creditor_2', 'amount_debt_2', 'rate_debt_2', 'date_debt_2',
       'creditor_3', 'amount_debt_3', 'rate_debt_3', 'date_debt_3',
-      'full_name_20_3', 'email_20_3', 'type_20_3', 'ownership_20_3',
+      'full_name_20_3', 'email20_3', 'type_20_3', 'ownership_20_3',
       'full_name_team_3', 'email_team_3', 'title_team_3'
     ];
     
@@ -613,6 +916,45 @@ class Phase1AutomationService {
     });
     
     console.log(`🧹 Cleaned up ${placeholderPatterns.length} template placeholders`);
+
+    // FINAL OVERRIDE: Map sheets data to standard field names for templates
+    // This happens at the very end to ensure sheets data takes priority over form data
+    if (enriched['dba_(doing_buisness_as)']) {
+      enriched.doing_business_as = enriched['dba_(doing_buisness_as)'];
+      console.log(`🔄 Final override: doing_business_as = "${enriched.doing_business_as}" (from sheets)`);
+    }
+    if (enriched.ein && enriched.ein !== enriched.ein_number) {
+      enriched.ein_number = enriched.ein;
+      console.log(`🔄 Final override: ein_number = "${enriched.ein_number}" (from sheets)`);
+    }
+    if (enriched.type_of_entity && enriched.type_of_entity !== enriched.entity_type) {
+      enriched.entity_type = enriched.type_of_entity;
+      console.log(`🔄 Final override: entity_type = "${enriched.entity_type}" (from sheets)`);
+    }
+    if (enriched.state_of_incorporation && enriched.state_of_incorporation !== enriched.state_incorporation) {
+      enriched.state_incorporation = enriched.state_of_incorporation;
+      console.log(`🔄 Final override: state_incorporation = "${enriched.state_incorporation}" (from sheets)`);
+    }
+    if (enriched.incorporation_date && enriched.incorporation_date !== enriched.date_incorporation) {
+      enriched.date_incorporation = enriched.incorporation_date;
+      console.log(`🔄 Final override: date_incorporation = "${enriched.date_incorporation}" (from sheets)`);
+    }
+    if (enriched.website && enriched.website !== enriched.website_issuer) {
+      enriched.website_issuer = enriched.website;
+      console.log(`🔄 Final override: website_issuer = "${enriched.website_issuer}" (from sheets)`);
+    }
+    // Add missing address overrides
+    if (enriched['address_-_business_physical_address'] && enriched['address_-_business_physical_address'] !== enriched.address_issuer) {
+      enriched.address_issuer = enriched['address_-_business_physical_address'];
+      enriched.business_address = enriched['address_-_business_physical_address'];
+      console.log(`🔄 Final override: business_address = "${enriched.business_address}" (from sheets)`);
+    }
+    // EIN override - use the preserved sheets EIN value if available
+    if (enriched.sheets_ein_value && enriched.sheets_ein_value !== enriched.ein_number) {
+      enriched.ein_number = enriched.sheets_ein_value;
+      enriched.ein = enriched.sheets_ein_value;
+      console.log(`🔄 Final override: ein_number = "${enriched.ein_number}" (from preserved sheets EIN)`);
+    }
 
     return enriched;
   }
@@ -691,12 +1033,22 @@ class Phase1AutomationService {
       console.log('⚠️ Form validation warnings:', errors);
       console.log('📊 Available data:', { businessName, firstName, email });
       
-      // Only fail if we have NO business name at all (and it's not a test)
-      if (isEmpty(businessName)) {
-        throw new Error('Business name is required for document generation');
+      // Derive a fallback business name from email domain if possible
+      if (!isEmpty(email)) {
+        try {
+          const domainPart = String(email).split('@')[1] || 'client';
+          const fallbackName = domainPart.replace(/\..*/, '').replace(/[^A-Za-z0-9]/g, ' ').trim();
+          if (fallbackName) {
+            console.warn(`⚠️ No business name provided – using email domain as fallback: "${fallbackName}"`);
+            return fallbackName;
+          }
+        } catch (e) {
+          // ignore parsing issues
+        }
       }
-      
-      console.log('✅ Continuing with available data (business name present)');
+      // Final fallback to generic placeholder to avoid crashing
+      console.warn('⚠️ No business name detected – using generic placeholder');
+      return 'Client Company';
     }
     
     console.log('✅ Validation passed for:', { businessName, firstName, email });
@@ -712,17 +1064,17 @@ class Phase1AutomationService {
       // STAGE 0: Validate input
       const sanitizedBusinessName = this.validateFormData(formData);
       
+      // Initialize Google services first so enrichment can access Sheets/Drive
+      this.initializeServices();
+
       // STAGE 1: Normalize form data
       const normalizedData = this.normalizeFormData(formData);
       
-      // STAGE 2: Enrich with derived data
-      const enrichedData = this.enrichData(normalizedData, formData);
-      
-      // Initialize services if needed
-      this.initializeServices();
-
+      // STAGE 2: Enrich with derived data (may call Sheets)
+      const enrichedData = await this.enrichData(normalizedData, formData);
+       
       // Step 1: Create client folder structure
-      const folders = await this.createClientFolders(sanitizedBusinessName);
+      const folders = await this.createClientFolders(enrichedData);
       
       // Step 2: Create all documents with clean data and error handling
       const documents = await this.createAllDocuments(enrichedData, folders.internal.id);
@@ -754,10 +1106,12 @@ class Phase1AutomationService {
     }
   }
 
-  async createClientFolders(businessName) {
+  async createClientFolders(enrichedData) {
     try {
-      console.log(`Creating folder structure for: ${businessName}`);
-      return await this.driveService.createClientFolderStructure(businessName);
+      // Format: project_name (business_legal_name)
+      const folderName = `${enrichedData.project_name} (${enrichedData.business_legal_name})`;
+      console.log(`Creating folder structure for: ${folderName}`);
+      return await this.driveService.createClientFolderStructure(folderName);
     } catch (error) {
       console.error('Error creating client folders:', error);
       throw error;
